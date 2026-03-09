@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Game Room</title>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07080d;--surface:#0f1017;--card:#161820;--border:#22242f;
+  --accent:#00ffcc;--accent2:#ff3cac;--gold:#ffd166;
+  --green:#06d6a0;--red:#ef476f;--text:#e2e8f0;--muted:#4a5068;
+  --my:#0a2a35;--their:#131520;
+  --font:'Share Tech Mono',monospace;--head:'Rajdhani',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow:hidden}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+#login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:44px 36px;width:360px;text-align:center;box-shadow:0 0 80px #00ffcc18}
+.login-box h1{font-family:var(--head);font-size:28px;color:var(--accent);letter-spacing:3px;margin-bottom:8px}
+.login-box p{color:var(--muted);font-size:12px;margin-bottom:24px;line-height:1.8}
+.login-box input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);font-size:14px;outline:none;font-family:var(--font);margin-bottom:10px;transition:border .2s}
+.login-box input:focus{border-color:var(--accent)}
+.login-box button{width:100%;background:var(--accent);border:none;border-radius:10px;padding:13px;color:var(--bg);font-weight:700;cursor:pointer;font-family:var(--head);letter-spacing:2px;font-size:15px}
+
+#app{display:none;height:100vh;flex-direction:column}
+#app.active{display:flex}
+
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.hdr-title{font-family:var(--head);font-size:18px;color:var(--accent);letter-spacing:3px;font-weight:700}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.pill{background:var(--accent)18;border:1px solid var(--accent)44;border-radius:20px;padding:4px 12px;color:var(--accent);font-size:11px;letter-spacing:1px}
+.btn-sm{background:transparent;border:1px solid var(--border);border-radius:20px;padding:5px 12px;color:var(--muted);font-size:11px;cursor:pointer;font-family:var(--font);letter-spacing:1px;transition:all .2s}
+.btn-sm:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm.on{background:var(--accent)22;border-color:var(--accent);color:var(--accent)}
+.btn-sm.red{border-color:var(--red)88;color:var(--red)}
+.btn-sm.red:hover{background:var(--red)22}
+
+#callbar{background:#061410;border-bottom:1px solid var(--green)33;padding:8px 16px;display:none;align-items:center;gap:12px;flex-shrink:0}
+#callbar.show{display:flex}
+#call-timer{color:var(--green);font-family:var(--head);font-weight:700;font-size:14px}
+#callbar-status{color:var(--green);font-size:11px;letter-spacing:1px;flex:1}
+#mini-vids{display:flex;gap:6px}
+#mini-vids video{width:120px;height:76px;object-fit:cover;border-radius:7px;border:1px solid var(--green)44;background:#000}
+
+.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+.tab{flex:1;padding:10px 0;background:transparent;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-size:11px;font-family:var(--font);letter-spacing:1px;transition:all .15s}
+.tab.on{background:var(--accent)0d;border-bottom-color:var(--accent);color:var(--accent)}
+
+.content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+
+/* CHAT */
+#tab-chat{display:none;flex:1;flex-direction:column;overflow:hidden}
+#tab-chat.on{display:flex}
+#msgs{flex:1;overflow-y:auto;padding:14px 14px 6px;display:flex;flex-direction:column;gap:10px}
+.mw{display:flex;flex-direction:column}
+.mw.me{align-items:flex-end}
+.mw.them{align-items:flex-start}
+.mw.sys{align-items:center}
+.mmeta{font-size:10px;color:var(--muted);margin-bottom:3px;letter-spacing:1px}
+.mbub{padding:9px 14px;font-size:13px;max-width:75%;line-height:1.6;word-break:break-word;border-radius:12px}
+.mw.me .mbub{background:var(--my);border:1px solid var(--accent)33;border-radius:12px 12px 2px 12px}
+.mw.them .mbub{background:var(--their);border:1px solid var(--border);border-radius:12px 12px 12px 2px}
+.mw.sys .mbub{background:transparent;border:none;color:var(--gold);font-size:11px;letter-spacing:1px;text-align:center}
+
+.peer-bubble{background:var(--card);border:1px solid var(--accent)44;border-radius:12px;padding:12px 16px;max-width:290px}
+.pb-label{color:var(--muted);font-size:10px;letter-spacing:1px;margin-bottom:6px}
+.pb-id{color:var(--accent);font-size:12px;word-break:break-all;margin-bottom:10px;line-height:1.5}
+.pb-btns{display:flex;gap:8px;flex-wrap:wrap}
+.pb-btn{border:none;border-radius:8px;padding:7px 14px;font-size:11px;cursor:pointer;font-family:var(--font);letter-spacing:1px;font-weight:700;transition:opacity .2s}
+.pb-btn:hover{opacity:.8}
+.pb-btn.call{background:var(--green);color:#000}
+.pb-btn.voice{background:#1a6cf0;color:#fff}
+.pb-btn.copy{background:var(--card);border:1px solid var(--border);color:var(--muted)}
+
+.chat-bar{padding:12px 14px;background:var(--surface);border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+.chat-bar input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;font-family:var(--font);transition:border .2s}
+.chat-bar input:focus{border-color:var(--accent)88}
+.chat-bar button{background:var(--accent);border:none;border-radius:8px;padding:10px 16px;color:var(--bg);font-weight:700;cursor:pointer;font-family:var(--head);letter-spacing:1px;font-size:14px}
+
+/* CALL */
+#tab-call{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;overflow-y:auto}
+#tab-call.on{display:flex}
+#vid-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:520px}
+#vid-grid.three{grid-template-columns:1fr 1fr;grid-template-rows:auto auto}
+#vid-grid.three .vid-you{grid-column:1/-1}
+#vid-grid video{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;border:1px solid var(--border);background:#000}
+#vid-grid video.lit{border-color:var(--accent)88;box-shadow:0 0 16px #00ffcc1a}
+.vid-lbl{font-size:10px;color:var(--muted);text-align:center;margin-top:4px;letter-spacing:1px}
+.call-ctrls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.ctrl{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:9px 14px;color:var(--text);font-size:12px;cursor:pointer;font-family:var(--font);transition:all .2s;letter-spacing:1px}
+.ctrl:hover{border-color:var(--accent);color:var(--accent)}
+.ctrl.on{background:var(--accent)22;border-color:var(--accent);color:var(--accent)}
+.ctrl.end{background:var(--red)22;border-color:var(--red);color:var(--red)}
+.call-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;width:100%;max-width:380px}
+.call-card h3{font-family:var(--head);font-size:15px;color:var(--accent);letter-spacing:2px;margin-bottom:14px}
+.my-id-box{background:var(--bg);border:1px solid var(--accent)33;border-radius:8px;padding:10px 14px;margin-bottom:12px}
+.my-id-box .lbl{color:var(--muted);font-size:10px;letter-spacing:1px;margin-bottom:5px}
+.my-id-box .val{color:var(--accent);font-size:12px;word-break:break-all;line-height:1.5}
+.call-card input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;font-family:var(--font);margin-bottom:8px}
+.big{width:100%;padding:12px;border:none;border-radius:9px;font-family:var(--head);font-size:14px;letter-spacing:2px;cursor:pointer;font-weight:700;margin-bottom:7px;transition:opacity .2s}
+.big:hover{opacity:.85}
+.big:disabled{opacity:.3;cursor:not-allowed}
+.big.grn{background:var(--green);color:#000}
+.big.blu{background:#1a6cf0;color:#fff}
+.big.rd{background:var(--red);color:#fff}
+
+/* DICE */
+#tab-dice{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px}
+#tab-dice.on{display:flex}
+#dice-disp{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;min-height:70px;align-items:center}
+.dice-btns{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+
+/* TTT */
+#tab-ttt{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px}
+#tab-ttt.on{display:flex}
+#ttt-grid{display:grid;grid-template-columns:repeat(3,80px);gap:6px}
+.tc{width:80px;height:80px;background:var(--card);border:2px solid var(--border);border-radius:10px;font-size:30px;font-weight:700;cursor:pointer;font-family:var(--head);display:flex;align-items:center;justify-content:center;transition:all .15s}
+.tc:hover:not(.taken){background:var(--accent)0d;border-color:var(--accent)44}
+.tc.X{color:var(--accent);border-color:var(--accent)66;cursor:default}
+.tc.O{color:var(--gold);border-color:var(--gold)66;cursor:default}
+
+/* COIN */
+#tab-coin{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px}
+#tab-coin.on{display:flex}
+.coin{width:120px;height:120px;border-radius:50%;background:var(--card);border:4px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:48px;box-shadow:0 0 40px #ffd16622}
+@keyframes cf{0%{transform:rotateY(0)}100%{transform:rotateY(1080deg)}}
+.coin.flip{animation:cf .9s ease-out}
+.chist{width:100%;max-width:300px;display:flex;flex-direction:column;gap:4px}
+.crow{display:flex;justify-content:space-between;background:var(--card);border-radius:6px;padding:6px 12px;font-size:11px}
+
+#incoming{position:fixed;bottom:20px;right:20px;background:var(--card);border:1px solid var(--green);border-radius:14px;padding:16px 20px;z-index:999;display:none;flex-direction:column;gap:10px;min-width:230px;box-shadow:0 0 30px #06d6a022}
+#incoming.show{display:flex}
+#incoming h4{color:var(--green);font-family:var(--head);font-size:14px;letter-spacing:1px}
+.inc-btns{display:flex;gap:8px}
+
+#status-bar{background:var(--accent)11;border-bottom:1px solid var(--accent)22;padding:5px 16px;font-size:10px;color:var(--accent);letter-spacing:1px;text-align:center;flex-shrink:0}
+/* HELP */
+#tab-help{display:none;flex:1;flex-direction:column;overflow-y:auto;padding:20px 16px;gap:16px}
+#tab-help.on{display:flex}
+.help-section{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:0}
+.help-title{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;font-family:var(--head);font-size:13px;letter-spacing:2px;color:var(--accent)}
+.help-step{display:flex;align-items:flex-start;gap:12px;padding:11px 16px;border-bottom:1px solid var(--border)33}
+.help-step:last-child{border-bottom:none}
+.snum{width:24px;height:24px;border-radius:50%;background:var(--accent);color:var(--bg);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;font-family:var(--head)}
+.stxt{font-size:12px;color:var(--text);line-height:1.7}.stxt b{color:var(--accent)}
+.hgrid{display:grid;grid-template-columns:1fr 1fr}
+.hfeat{padding:12px 14px;border-bottom:1px solid var(--border)33;border-right:1px solid var(--border)33}
+.hfeat:nth-child(even){border-right:none}
+.hfeat:nth-last-child(-n+2){border-bottom:none}
+.ficon{font-size:20px;margin-bottom:5px}
+.ftitle{font-size:11px;color:var(--accent);letter-spacing:1px;margin-bottom:3px;font-family:var(--head)}
+.fdesc{font-size:11px;color:var(--muted);line-height:1.6}
+.htip{display:flex;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border)33;align-items:flex-start}
+.htip:last-child{border-bottom:none}
+.htip-i{font-size:15px;flex-shrink:0;margin-top:1px}
+.htip-t{font-size:12px;color:var(--muted);line-height:1.6}.htip-t b{color:var(--text)}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login-box">
+    <div style="font-size:44px;margin-bottom:12px">🎮</div>
+    <h1>GAME ROOM</h1>
+    <p>Chat · Voice · Video · Screenshare · Games<br/>Everyone with this link is in the same room.<br/>Messages sync in real time 🔥</p>
+    <input id="name-in" placeholder="Your name..." autofocus/>
+    <button onclick="joinRoom()">ENTER →</button>
+  </div>
+</div>
+
+<div id="incoming">
+  <h4>📞 INCOMING CALL</h4>
+  <div id="inc-name" style="color:var(--muted);font-size:11px;letter-spacing:1px"></div>
+  <div class="inc-btns">
+    <button class="big grn" style="margin:0;padding:8px 16px;font-size:12px;width:auto" onclick="answerCall()">ANSWER</button>
+    <button class="big rd"  style="margin:0;padding:8px 16px;font-size:12px;width:auto" onclick="rejectCall()">DECLINE</button>
+  </div>
+</div>
+
+<div id="app">
+  <div class="hdr">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:18px">🎮</span>
+      <span class="hdr-title">GAME ROOM</span>
+    </div>
+    <div class="hdr-right">
+      <button class="btn-sm" onclick="copyLink(this)">🔗 COPY LINK</button>
+      <div class="pill" id="uname-pill">—</div>
+    </div>
+  </div>
+
+  <div id="status-bar">🔴 CONNECTING TO FIREBASE...</div>
+
+  <div id="callbar">
+    <div id="callbar-status">🟢 CALL ACTIVE</div>
+    <div id="call-timer">00:00</div>
+    <div id="mini-vids">
+      <video id="lv-mini" autoplay muted playsinline></video>
+      <video id="rv-mini" autoplay playsinline></video>
+    </div>
+    <button class="btn-sm red" onclick="endCall()">END</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" onclick="sw('chat',this)">💬 Chat</button>
+    <button class="tab"    onclick="sw('call',this)">📞 Call</button>
+    <button class="tab"    onclick="sw('dice',this)">🎲 Dice</button>
+    <button class="tab"    onclick="sw('ttt',this)" >⬜ TTT</button>
+    <button class="tab"    onclick="sw('coin',this)">🪙 Coin</button>
+    <button class="tab"    onclick="sw('help',this)">❓ Help</button>
+  </div>
+
+  <div class="content">
+
+    <div id="tab-chat" class="on">
+      <div id="msgs"></div>
+      <div class="chat-bar">
+        <input id="chat-in" placeholder="Message... (Enter to send)" onkeydown="ck(event)"/>
+        <button onclick="sendChat()">SEND</button>
+      </div>
+    </div>
+
+    <div id="tab-call">
+      <div id="vid-grid" style="display:none">
+        <div class="vid-you"><video id="lv" autoplay muted playsinline class="lit"></video><div class="vid-lbl">YOU</div></div>
+        <div id="rv1-wrap"><video id="rv1" autoplay playsinline></video><div class="vid-lbl" id="rv1-lbl">FRIEND 1</div></div>
+        <div id="rv2-wrap" style="display:none"><video id="rv2" autoplay playsinline></video><div class="vid-lbl" id="rv2-lbl">FRIEND 2</div></div>
+      </div>
+      <div class="call-ctrls" id="call-ctrls" style="display:none">
+        <button class="ctrl" id="btn-mute"   onclick="toggleMute()">🎤 MUTE</button>
+        <button class="ctrl" id="btn-cam"    onclick="toggleCam()">📷 CAM OFF</button>
+        <button class="ctrl" id="btn-screen" onclick="toggleScreen()">🖥 SCREENSHARE</button>
+        <button class="ctrl end"             onclick="endCall()">📵 END ALL</button>
+      </div>
+      <div class="call-card">
+        <h3>📞 MAKE A CALL</h3>
+        <div class="my-id-box">
+          <div class="lbl">YOUR PEER ID — also posted in chat automatically</div>
+          <div class="val" id="my-id-val">connecting...</div>
+        </div>
+        <div style="color:var(--muted);font-size:10px;letter-spacing:1px;margin-bottom:6px">FRIEND 1 PEER ID</div>
+        <input id="call-target" placeholder="Paste Friend 1 Peer ID..."/>
+        <div style="color:var(--muted);font-size:10px;letter-spacing:1px;margin-bottom:6px;margin-top:4px">FRIEND 2 PEER ID <span style="color:var(--border)">(optional — for 3-way call)</span></div>
+        <input id="call-target2" placeholder="Paste Friend 2 Peer ID... (optional)"/>
+        <button class="big grn" id="btn-vcall" onclick="startCall(false)" disabled>📹 VIDEO CALL</button>
+        <button class="big blu" id="btn-acall" onclick="startCall(true)"  disabled>🎙 VOICE ONLY</button>
+      </div>
+    </div>
+
+    <div id="tab-dice">
+      <div style="color:var(--accent);font-size:13px;letter-spacing:2px">ROLL THE DICE</div>
+      <div id="dice-disp"></div>
+      <div class="dice-btns">
+        <button class="btn-sm" onclick="roll(1,6)">1d6</button>
+        <button class="btn-sm" onclick="roll(2,6)">2d6</button>
+        <button class="btn-sm" onclick="roll(3,6)">3d6</button>
+        <button class="btn-sm" onclick="roll(4,6)">4d6</button>
+        <button class="btn-sm" onclick="roll(6,6)">6d6</button>
+        <button class="btn-sm" onclick="roll(1,20)">d20</button>
+      </div>
+      <div id="dice-total" style="color:var(--gold);font-size:20px;letter-spacing:2px;font-family:var(--head)"></div>
+      <div style="color:var(--muted);font-size:11px;letter-spacing:1px">RESULTS SHARED IN CHAT</div>
+    </div>
+
+    <div id="tab-ttt">
+      <div style="color:var(--accent);font-size:13px;letter-spacing:2px">TIC-TAC-TOE</div>
+      <div id="ttt-sc" style="display:flex;gap:20px;font-size:12px;letter-spacing:1px;min-height:40px;align-items:center"></div>
+      <div id="ttt-grid"></div>
+      <div id="ttt-stat" style="font-size:12px;letter-spacing:1px;color:var(--muted)">WAITING...</div>
+      <button class="btn-sm" onclick="tttReset()">RESET BOARD</button>
+    </div>
+
+    <div id="tab-coin">
+      <div style="color:var(--accent);font-size:13px;letter-spacing:2px">COIN FLIP</div>
+      <div class="coin" id="coin">🪙</div>
+      <div id="coin-res" style="color:var(--gold);font-size:22px;letter-spacing:3px;font-family:var(--head);min-height:30px"></div>
+      <button class="btn-sm on" style="padding:11px 30px;font-size:13px" onclick="flipCoin()">FLIP!</button>
+      <div class="chist" id="chist"></div>
+    </div>
+
+    <div id="tab-help">
+
+      <div class="help-section">
+        <div class="help-title">🚀 GETTING STARTED</div>
+        <div class="help-step"><div class="snum">1</div><div class="stxt">Open this page and <b>type your name</b> to enter the room.</div></div>
+        <div class="help-step"><div class="snum">2</div><div class="stxt"><b>Copy the link</b> (🔗 COPY LINK button top right) and send it to your friend.</div></div>
+        <div class="help-step"><div class="snum">3</div><div class="stxt">Your friend opens the link and <b>types their name</b>. You're now in the same room.</div></div>
+        <div class="help-step"><div class="snum">4</div><div class="stxt">Their <b>Peer ID card</b> auto-appears in 💬 Chat. Click <b>📹 VIDEO</b> or <b>🎙 VOICE</b> on it to call them.</div></div>
+        <div class="help-step"><div class="snum">5</div><div class="stxt">They'll see an <b>incoming call popup</b> — they hit <b>ANSWER</b> and you're connected!</div></div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">📱 WHAT EACH TAB DOES</div>
+        <div class="hgrid">
+          <div class="hfeat"><div class="ficon">💬</div><div class="ftitle">CHAT</div><div class="fdesc">Real-time messages. Both of you see them instantly. Type + hit Enter.</div></div>
+          <div class="hfeat"><div class="ficon">📞</div><div class="ftitle">CALL</div><div class="fdesc">Video or voice call. Paste 1 ID for 1-on-1, or 2 IDs for a 3-way call!</div></div>
+          <div class="hfeat"><div class="ficon">🎲</div><div class="ftitle">DICE</div><div class="fdesc">Roll dice together. Pick d6 or d20. Results auto-post in chat.</div></div>
+          <div class="hfeat"><div class="ficon">⬜</div><div class="ftitle">TTT</div><div class="fdesc">Tic-Tac-Toe vs your friend. Takes turns automatically. Tracks wins.</div></div>
+          <div class="hfeat"><div class="ficon">🪙</div><div class="ftitle">COIN</div><div class="fdesc">Flip a coin. Result shared in chat. Shows flip history.</div></div>
+          <div class="hfeat"><div class="ficon">🖥</div><div class="ftitle">SCREEN</div><div class="fdesc">During a call, hit 🖥 SCREENSHARE to share your screen with your friend.</div></div>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-title">🔧 TROUBLESHOOTING</div>
+        <div class="htip"><div class="htip-i">❌</div><div class="htip-t"><b>Friend can't see messages?</b> Make sure you're both on the exact same URL. Must be HTTPS (GitHub Pages), not a local file.</div></div>
+        <div class="htip"><div class="htip-i">❌</div><div class="htip-t"><b>Camera/mic not working?</b> Click Allow when the browser asks. Only works on HTTPS. Try Chrome or Edge.</div></div>
+        <div class="htip"><div class="htip-i">❌</div><div class="htip-t"><b>Call not connecting?</b> Peer IDs change on every refresh — always call from the chat card, not a saved ID.</div></div>
+        <div class="htip"><div class="htip-i">❌</div><div class="htip-t"><b>On school/work WiFi?</b> Some networks block calls. Try switching to mobile data.</div></div>
+        <div class="htip"><div class="htip-i">✅</div><div class="htip-t"><b>Status bar</b> at top shows 🟢 CONNECTED when Firebase is ready. If it's red, check your internet.</div></div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDfyR_WcrlPX_CIU-fklEPqVFY-kHrzSss",
+  authDomain: "callnchat-d1b1a.firebaseapp.com",
+  projectId: "callnchat-d1b1a",
+  storageBucket: "callnchat-d1b1a.firebasestorage.app",
+  messagingSenderId: "190123167188",
+  appId: "1:190123167188:web:279f9befac8efa07a3da41"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+
+// ── State ──────────────────────────────────────────────
+let peer, conn, pendingCall;
+let localStream, screenStream;
+let username = '', myPeerId = '';
+let muted=false, camOff=false, screening=false;
+let callSecs=0, callInterval=null;
+let tttBoard=Array(9).fill(null), tttScores={}, tttTurn=null;
+const seenIds = new Set();
+
+// ── Firebase helpers ───────────────────────────────────
+const msgsRef = () => collection(db, 'gameroom', 'room1', 'messages');
+const stateRef = () => doc(db, 'gameroom', 'room1');
+
+async function fbSendMsg(data) {
+  try {
+    await addDoc(msgsRef(), { ...data, ts: serverTimestamp() });
+  } catch(e) {
+    setStatus('🔴 SEND FAILED: ' + e.code, 'var(--red)');
+    sysmsg('🔴 Message failed to send: ' + e.code + ' — ' + e.message);
+  }
+}
+
+async function fbSetState(data) {
+  await setDoc(stateRef(), data, { merge: true });
+}
+
+async function fbGetState() {
+  const snap = await getDoc(stateRef());
+  return snap.exists() ? snap.data() : {};
+}
+
+// ── Listen to messages in real time ───────────────────
+function listenMsgs() {
+  setStatus('🟡 CONNECTING TO FIREBASE...', 'var(--gold)');
+  const q = query(msgsRef(), orderBy('ts', 'asc'), limit(100));
+  onSnapshot(q, snap => {
+    setStatus('🟢 FIREBASE CONNECTED — ' + snap.size + ' messages loaded', 'var(--green)');
+    snap.docChanges().forEach(change => {
+      if (change.type === 'added') {
+        const d = change.doc.data();
+        const id = change.doc.id;
+        if (seenIds.has(id)) return;
+        seenIds.add(id);
+        if (d.type === 'chat') {
+          if (d.user !== username) appendMsg(d.user, d.text, 'them');
+        } else if (d.type === 'peerid') {
+          if (d.user !== username) postPeerIdBubble(d.user, d.id, 'them');
+        } else if (d.type === 'sys') {
+          if (d.user !== username) sysmsg(d.text);
+        } else if (d.type === 'dice') {
+          if (d.user !== username) { sysmsg(`🎲 ${d.user} rolled ${d.n}d${d.s}: [${d.vals.join(', ')}] = ${d.tot}`); renderDice(d.vals, d.s); }
+        } else if (d.type === 'coin') {
+          if (d.user !== username) { sysmsg(`🪙 ${d.user} flipped: ${d.res}`); showCoin(d.res); }
+        }
+      }
+    });
+  }, err => {
+    setStatus('🔴 FIREBASE ERROR: ' + err.code + ' — ' + err.message, 'var(--red)');
+    sysmsg('🔴 Firebase error: ' + err.code + ' · ' + err.message);
+  });
+}
+
+// ── Listen to game state (TTT, coin) ──────────────────
+function listenState() {
+  onSnapshot(stateRef(), snap => {
+    if (!snap.exists()) return;
+    const d = snap.data();
+    if (d.ttt) {
+      tttBoard = d.ttt.board;
+      tttScores = d.ttt.scores || {};
+      tttTurn = d.ttt.turn;
+      renderTTT(d.ttt.winner);
+    }
+    if (d.coinLog) renderCoinHist(d.coinLog);
+  });
+}
+
+// ── Status bar ─────────────────────────────────────────
+function setStatus(msg, color='var(--accent)') {
+  const b = document.getElementById('status-bar');
+  b.textContent = msg; b.style.color = color;
+}
+
+// ── JOIN ───────────────────────────────────────────────
+window.joinRoom = function() {
+  const n = document.getElementById('name-in').value.trim();
+  if (!n) return;
+  username = n;
+  document.getElementById('uname-pill').textContent = n;
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  listenMsgs();
+  listenState();
+  initPeer();
+  setStatus('🟡 CONNECTING...');
+};
+document.getElementById('name-in').addEventListener('keydown', e => { if(e.key==='Enter') window.joinRoom(); });
+
+// ── PEER ───────────────────────────────────────────────
+function initPeer() {
+  peer = new Peer({
+    debug: 0,
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:global.stun.twilio.com:3478' },
+      ]
+    }
+  });
+  peer.on('open', id => {
+    myPeerId = id;
+    document.getElementById('my-id-val').textContent = id;
+    document.getElementById('btn-vcall').disabled = false;
+    document.getElementById('btn-acall').disabled = false;
+    setStatus('🟢 CONNECTED — share the link with your friend!', 'var(--green)');
+    // Post peer ID to Firebase so friend sees it in chat
+    postPeerIdBubble(username, id, 'me');
+    fbSendMsg({ type:'peerid', user:username, id });
+    sysmsg(`${username} joined the room`);
+    fbSendMsg({ type:'sys', user:username, text:`${username} joined the room` });
+  });
+  peer.on('connection', c => { conn=c; setupConn(); });
+  peer.on('call', inc => {
+    pendingCall = inc;
+    document.getElementById('inc-name').textContent = 'From: '+(inc.metadata?.name||'Someone');
+    document.getElementById('incoming').classList.add('show');
+  });
+  peer.on('error', e => setStatus('⚠ Peer error: '+e.type, 'var(--red)'));
+}
+
+function setupConn() {
+  conn.on('open', () => sysmsg('🔗 Direct peer connection open'));
+  conn.on('data', d => {
+    // Direct peer data (low latency, used for TTT moves)
+    if (d.type==='ttt-move') applyMove(d.i,d.sym,d.turn,d.win,d.sc);
+    if (d.type==='ttt-reset') { tttBoard=Array(9).fill(null);tttScores=d.sc;tttTurn=null;renderTTT(null); }
+  });
+  conn.on('close', () => sysmsg('🔌 Direct connection closed'));
+}
+
+function connectData(targetId) {
+  if (conn && conn.open) return;
+  conn = peer.connect(targetId, { metadata:{ name:username } });
+  setupConn();
+}
+
+function sendDirect(obj) { if(conn&&conn.open) conn.send(obj); }
+
+// ── CHAT ───────────────────────────────────────────────
+window.ck = e => { if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); window.sendChat(); } };
+
+window.sendChat = async function() {
+  const inp = document.getElementById('chat-in');
+  const txt = inp.value.trim(); if(!txt) return;
+  inp.value = '';
+  appendMsg(username, txt, 'me');
+  await fbSendMsg({ type:'chat', user:username, text:txt });
+};
+
+function appendMsg(user, text, side) {
+  const msgs = document.getElementById('msgs');
+  const w = document.createElement('div'); w.className='mw '+side;
+  const meta = document.createElement('div'); meta.className='mmeta';
+  meta.textContent = (side==='me'?'YOU':user.toUpperCase())+' · '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const b = document.createElement('div'); b.className='mbub'; b.textContent=text;
+  w.appendChild(meta); w.appendChild(b); msgs.appendChild(w);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function sysmsg(text) {
+  const msgs = document.getElementById('msgs');
+  const w = document.createElement('div'); w.className='mw sys';
+  const b = document.createElement('div'); b.className='mbub'; b.textContent=text;
+  w.appendChild(b); msgs.appendChild(w);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function postPeerIdBubble(user, id, side) {
+  const msgs = document.getElementById('msgs');
+  const w = document.createElement('div'); w.className='mw '+side;
+  const meta = document.createElement('div'); meta.className='mmeta';
+  meta.textContent = (side==='me'?'YOU':user.toUpperCase())+' joined · '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const bub = document.createElement('div'); bub.className='peer-bubble';
+  bub.innerHTML=`
+    <div class="pb-label">${side==='me'?'YOUR PEER ID — friends can click to call you':'THEIR PEER ID — click to call'}</div>
+    <div class="pb-id">${id}</div>
+    <div class="pb-btns">
+      ${side==='them'?`<button class="pb-btn call" onclick="callFromBubble('${id}',false)">📹 VIDEO</button>
+                       <button class="pb-btn voice" onclick="callFromBubble('${id}',true)">🎙 VOICE</button>`:''}
+      <button class="pb-btn copy" onclick="copyId('${id}',this)">📋 COPY</button>
+    </div>`;
+  w.appendChild(meta); w.appendChild(bub); msgs.appendChild(w);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+window.callFromBubble = function(id, voiceOnly) {
+  // Fill first empty slot
+  const t1 = document.getElementById('call-target');
+  const t2 = document.getElementById('call-target2');
+  if (!t1.value.trim()) t1.value = id;
+  else if (!t2.value.trim()) t2.value = id;
+  else t1.value = id;
+  sw('call', document.querySelectorAll('.tab')[1]);
+};
+
+window.copyId = function(id, btn) {
+  navigator.clipboard.writeText(id).then(()=>{ btn.textContent='✓ COPIED!'; setTimeout(()=>btn.textContent='📋 COPY',1500); });
+};
+
+// ── CALL (supports 1-on-1 and 3-way mesh) ─────────────
+// activeCalls: Map<peerId, MediaConnection>
+const activeCalls = new Map();
+
+async function getLocalStream(voiceOnly) {
+  if (localStream) return localStream;
+  try { localStream = await navigator.mediaDevices.getUserMedia({video:!voiceOnly, audio:true}); }
+  catch(e) { localStream = await navigator.mediaDevices.getUserMedia({video:false, audio:true}); }
+  setLocalVid(localStream);
+  return localStream;
+}
+
+async function startCall(voiceOnly) {
+  const t1 = document.getElementById('call-target').value.trim();
+  const t2 = document.getElementById('call-target2').value.trim();
+  if (!t1) { alert("Paste at least Friend 1's Peer ID!"); return; }
+  try {
+    await getLocalStream(voiceOnly);
+    // Call friend 1
+    callPeer(t1, voiceOnly, 'rv1', 'rv1-lbl', 'FRIEND 1');
+    // Call friend 2 if provided
+    if (t2) callPeer(t2, voiceOnly, 'rv2', 'rv2-lbl', 'FRIEND 2');
+    onCallStart(voiceOnly, !!t2);
+  } catch(e) { alert('Mic/cam error: '+e.message); }
+}
+window.startCall = startCall;
+
+function callPeer(targetId, voiceOnly, vidId, lblId, label) {
+  const c = peer.call(targetId, localStream, {metadata:{name:username}});
+  activeCalls.set(targetId, c);
+  c.on('stream', s => {
+    const v = document.getElementById(vidId);
+    const w = document.getElementById(vidId.replace('rv','rv')+'​-wrap') || document.getElementById(vidId+'-wrap');
+    v.srcObject = s; v.play().catch(()=>{});
+    // show the slot
+    if (vidId === 'rv2') document.getElementById('rv2-wrap').style.display = '';
+    document.getElementById(lblId).textContent = label;
+    // mini vid - use first remote
+    if (vidId === 'rv1') { const mv=document.getElementById('rv-mini'); mv.srcObject=s; mv.muted=false; mv.volume=1.0; mv.play().catch(()=>{}); }
+  });
+  c.on('close', () => {
+    activeCalls.delete(targetId);
+    document.getElementById(vidId).srcObject = null;
+    if (vidId === 'rv2') document.getElementById('rv2-wrap').style.display = 'none';
+    sysmsg(`📵 ${label} left the call`);
+    if (activeCalls.size === 0) onCallEnd();
+  });
+}
+
+window.answerCall = async function() {
+  document.getElementById('incoming').classList.remove('show');
+  if (!pendingCall) return;
+  try { await getLocalStream(false); }
+  catch(e) { try { await getLocalStream(true); } catch(e2){ alert('No mic access'); return; } }
+  const slotId = activeCalls.size === 0 ? 'rv1' : 'rv2';
+  const lblId  = slotId + '-lbl';
+  const label  = activeCalls.size === 0 ? 'FRIEND 1' : 'FRIEND 2';
+  pendingCall.answer(localStream);
+  const c = pendingCall; pendingCall = null;
+  activeCalls.set(c.peer, c);
+  c.on('stream', s => {
+    const v = document.getElementById(slotId);
+    v.srcObject = s; v.muted = false; v.volume = 1.0; v.play().catch(()=>{});
+    if (slotId === 'rv2') document.getElementById('rv2-wrap').style.display = '';
+    document.getElementById(lblId).textContent = label;
+    if (slotId === 'rv1') { const mv=document.getElementById('rv-mini'); mv.srcObject=s; mv.muted=false; mv.volume=1.0; mv.play().catch(()=>{}); }
+  });
+  c.on('close', () => {
+    activeCalls.delete(c.peer);
+    document.getElementById(slotId).srcObject = null;
+    if (slotId === 'rv2') document.getElementById('rv2-wrap').style.display = 'none';
+    sysmsg(`📵 ${label} left the call`);
+    if (activeCalls.size === 0) onCallEnd();
+  });
+  const isThree = activeCalls.size > 1;
+  onCallStart(!localStream.getVideoTracks().length, isThree);
+};
+
+window.rejectCall = function() {
+  document.getElementById('incoming').classList.remove('show');
+  if(pendingCall){ pendingCall.close(); pendingCall=null; }
+};
+
+function setLocalVid(s){ ['lv','lv-mini'].forEach(id=>{ const v=document.getElementById(id); v.srcObject=s; v.play().catch(()=>{}); }); }
+
+function ensureAudio() {
+  // Force-unmute and play all remote video elements after user gesture
+  ['rv1','rv2','rv-mini'].forEach(id => {
+    const v = document.getElementById(id);
+    if (!v) return;
+    v.muted = false;
+    v.volume = 1.0;
+    if (v.srcObject && v.paused) v.play().catch(()=>{});
+  });
+}
+
+// Attach ensureAudio to any user interaction on the page
+document.addEventListener('click', ensureAudio, { once: false });
+document.addEventListener('keydown', ensureAudio, { once: false });
+
+function onCallStart(voiceOnly, isThree=false) {
+  document.getElementById('callbar').classList.add('show');
+  const grid = document.getElementById('vid-grid');
+  grid.style.display = voiceOnly ? 'none' : 'grid';
+  if (isThree) grid.classList.add('three'); else grid.classList.remove('three');
+  document.getElementById('call-ctrls').style.display = 'flex';
+  if (!callInterval) {
+    callSecs=0;
+    callInterval=setInterval(()=>{
+      callSecs++;
+      const m=String(Math.floor(callSecs/60)).padStart(2,'0');
+      const s=String(callSecs%60).padStart(2,'0');
+      document.getElementById('call-timer').textContent=m+':'+s;
+    },1000);
+  }
+  const count = activeCalls.size;
+  sysmsg(`📞 ${count > 1 ? '3-WAY ' : ''}CALL STARTED${voiceOnly?' — VOICE ONLY':''}`);
+}
+
+function onCallEnd() {
+  clearInterval(callInterval); callInterval=null;
+  activeCalls.clear();
+  document.getElementById('callbar').classList.remove('show');
+  document.getElementById('vid-grid').style.display='none';
+  document.getElementById('call-ctrls').style.display='none';
+  document.getElementById('rv2-wrap').style.display='none';
+  localStream?.getTracks().forEach(t=>t.stop()); localStream=null;
+  screenStream?.getTracks().forEach(t=>t.stop()); screenStream=null;
+  sysmsg('📵 CALL ENDED');
+}
+
+window.endCall = function(){
+  activeCalls.forEach(c => c.close());
+  onCallEnd();
+};
+
+window.toggleMute = function(){
+  muted=!muted;
+  localStream?.getAudioTracks().forEach(t=>t.enabled=!muted);
+  const b=document.getElementById('btn-mute'); b.textContent=muted?'🔇 UNMUTE':'🎤 MUTE'; b.classList.toggle('on',muted);
+};
+window.toggleCam = function(){
+  camOff=!camOff;
+  localStream?.getVideoTracks().forEach(t=>t.enabled=!camOff);
+  const b=document.getElementById('btn-cam'); b.textContent=camOff?'📷 CAM ON':'📷 CAM OFF'; b.classList.toggle('on',camOff);
+};
+window.toggleScreen = async function(){
+  if(!activeCalls.size){ alert('Start a call first!'); return; }
+  if(!screening){
+    try{
+      screenStream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
+      const st=screenStream.getVideoTracks()[0];
+      activeCalls.forEach(c => {
+        const sender=c.peerConnection.getSenders().find(s=>s.track?.kind==='video');
+        if(sender) sender.replaceTrack(st);
+      });
+      document.getElementById('lv').srcObject=screenStream;
+      document.getElementById('lv-mini').srcObject=screenStream;
+      st.onended=()=>{ screening=false; window.stopScreen(); };
+      screening=true;
+      const b=document.getElementById('btn-screen'); b.textContent='🖥 STOP SHARE'; b.classList.add('on');
+    } catch(e){ sysmsg('⚠ Screenshare: '+e.message); }
+  } else window.stopScreen();
+};
+window.stopScreen = function(){
+  screenStream?.getTracks().forEach(t=>t.stop()); screenStream=null;
+  const vt=localStream?.getVideoTracks()[0];
+  if(vt) activeCalls.forEach(c => {
+    const sender=c.peerConnection.getSenders().find(s=>s.track?.kind==='video');
+    if(sender) sender.replaceTrack(vt);
+  });
+  document.getElementById('lv').srcObject=localStream;
+  document.getElementById('lv-mini').srcObject=localStream;
+  screening=false;
+  const b=document.getElementById('btn-screen'); b.textContent='🖥 SCREENSHARE'; b.classList.remove('on');
+};
+
+// ── DICE ───────────────────────────────────────────────
+const DDOTS={1:[[50,50]],2:[[25,25],[75,75]],3:[[25,25],[50,50],[75,75]],4:[[25,25],[75,25],[25,75],[75,75]],5:[[25,25],[75,25],[50,50],[25,75],[75,75]],6:[[25,25],[75,25],[25,50],[75,50],[25,75],[75,75]]};
+function diceSVG(v){ const p=DDOTS[Math.min(v,6)]||DDOTS[6]; return `<svg width="64" height="64" viewBox="0 0 100 100"><rect x="2" y="2" width="96" height="96" rx="18" fill="var(--card)" stroke="var(--accent)" stroke-width="3"/>${p.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="9" fill="var(--accent)"/>`).join('')}</svg>`; }
+function d20SVG(v){ return `<svg width="64" height="64" viewBox="0 0 100 100"><polygon points="50,4 96,76 4,76" fill="var(--card)" stroke="var(--accent2)" stroke-width="3"/><text x="50" y="64" text-anchor="middle" fill="var(--accent2)" font-size="26" font-family="var(--font)" font-weight="bold">${v}</text></svg>`; }
+
+window.roll = async function(n,s){
+  const vals=Array.from({length:n},()=>Math.ceil(Math.random()*s));
+  const tot=vals.reduce((a,b)=>a+b,0);
+  renderDice(vals,s);
+  const txt=`🎲 ${username} rolled ${n}d${s}: [${vals.join(', ')}] = ${tot}`;
+  sysmsg(txt);
+  await fbSendMsg({type:'dice',user:username,n,s,vals,tot});
+};
+
+function renderDice(vals,s){
+  document.getElementById('dice-disp').innerHTML=vals.map(v=>s===20?d20SVG(v):diceSVG(v)).join('');
+  document.getElementById('dice-total').textContent=vals.length>1?'TOTAL: '+vals.reduce((a,b)=>a+b,0):'';
+}
+
+// ── TTT ────────────────────────────────────────────────
+function tttWin(b){ for(const [a,x,c] of [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]) if(b[a]&&b[a]===b[x]&&b[a]===b[c]) return b[a]; return b.every(Boolean)?'draw':null; }
+
+window.tttClick = async function(i){
+  if(tttBoard[i]) return;
+  const players=Object.keys(tttScores);
+  let sym=tttScores[username]?.symbol;
+  if(!sym){ if(!players.length) sym='X'; else if(players.length===1) sym='O'; else return; }
+  if(tttTurn&&tttTurn!==username) return;
+  if(!tttScores[username]) tttScores[username]={symbol:sym,wins:0};
+  tttBoard[i]=sym;
+  const win=tttWin(tttBoard);
+  const other=Object.keys(tttScores).find(p=>p!==username);
+  tttTurn=other||null;
+  if(win&&win!=='draw') tttScores[username].wins=(tttScores[username].wins||0)+1;
+  renderTTT(win);
+  sendDirect({type:'ttt-move',i,sym,turn:tttTurn,win,sc:tttScores});
+  await fbSetState({ttt:{board:[...tttBoard],turn:tttTurn,winner:win||null,scores:{...tttScores}}});
+  if(win) { sysmsg(win==='draw'?'⬜ DRAW!':`🏆 ${username} WINS!`); await fbSendMsg({type:'sys',user:username,text:win==='draw'?'⬜ DRAW!':`🏆 ${username} WINS!`}); }
+};
+
+function applyMove(i,sym,turn,win,sc){ tttBoard[i]=sym;tttTurn=turn;tttScores=sc;renderTTT(win); if(win) sysmsg(win==='draw'?'⬜ DRAW!':'🏆 OPPONENT WINS!'); }
+
+function renderTTT(win){
+  const g=document.getElementById('ttt-grid'); g.innerHTML='';
+  tttBoard.forEach((c,i)=>{ const b=document.createElement('button'); b.className='tc'+(c?' '+c+' taken':''); b.textContent=c||''; b.onclick=()=>window.tttClick(i); g.appendChild(b); });
+  document.getElementById('ttt-sc').innerHTML=Object.entries(tttScores).map(([p,s])=>`<div style="text-align:center"><div style="color:${p===username?'var(--accent)':'var(--gold)'}">${p===username?'YOU':p.toUpperCase()}</div><div style="font-size:18px">${s.symbol} · ${s.wins||0}W</div></div>`).join('')||'<div style="color:var(--muted)">Waiting for players...</div>';
+  const st=document.getElementById('ttt-stat'); const pc=Object.keys(tttScores).length;
+  if(win){ st.textContent=win==='draw'?'DRAW!':(Object.entries(tttScores).find(([,v])=>v.symbol===win)?.[0]?.toUpperCase()||win)+' WINS! 🏆'; st.style.color='var(--gold)'; }
+  else if(pc<2){ st.textContent='WAITING FOR FRIEND...'; st.style.color='var(--muted)'; }
+  else if(!tttTurn||tttTurn===username){ st.textContent='YOUR TURN'; st.style.color='var(--green)'; }
+  else { st.textContent="OPPONENT'S TURN..."; st.style.color='var(--muted)'; }
+}
+
+window.tttReset = async function(){
+  tttBoard=Array(9).fill(null);tttTurn=null;renderTTT(null);
+  sendDirect({type:'ttt-reset',sc:tttScores});
+  await fbSetState({ttt:{board:tttBoard,turn:null,winner:null,scores:tttScores}});
+  sysmsg('🔄 TTT RESET');
+};
+
+// ── COIN ───────────────────────────────────────────────
+window.flipCoin = async function(){
+  const c=document.getElementById('coin'); c.className='coin flip'; c.textContent='🪙';
+  document.getElementById('coin-res').textContent='';
+  setTimeout(async()=>{
+    const res=Math.random()<.5?'HEADS':'TAILS'; c.className='coin'; showCoin(res);
+    sysmsg(`🪙 ${username} flipped: ${res}`);
+    await fbSendMsg({type:'coin',user:username,res});
+    const state=await fbGetState();
+    const log=[...(state.coinLog||[]),{user:username,result:res,ts:Date.now()}].slice(-20);
+    await fbSetState({coinLog:log});
+  },900);
+};
+
+function showCoin(res){ document.getElementById('coin').textContent=res==='HEADS'?'👑':'🔵'; document.getElementById('coin-res').textContent=res; }
+function renderCoinHist(log){ document.getElementById('chist').innerHTML=[...log].reverse().slice(0,6).map(e=>`<div class="crow"><span style="color:var(--muted)">${e.user.toUpperCase()}</span><span style="color:${e.result==='HEADS'?'var(--green)':'var(--accent)'}">${e.result}</span><span style="color:var(--muted)">${new Date(e.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></div>`).join(''); }
+
+// ── UI ─────────────────────────────────────────────────
+window.sw = function(id,el){ document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on')); document.querySelectorAll('.content > div').forEach(t=>t.classList.remove('on')); el.classList.add('on'); document.getElementById('tab-'+id).classList.add('on'); };
+window.copyLink = function(btn){ navigator.clipboard.writeText(window.location.href).then(()=>{ btn.textContent='✓ COPIED!'; setTimeout(()=>btn.textContent='🔗 COPY LINK',2000); }); };
+
+renderTTT(null);
+</script>
+</body>
+</html>
