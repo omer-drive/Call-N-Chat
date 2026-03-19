@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Omer 'N Chat</title>
+<!-- Firebase compat — no ES modules, works everywhere -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<!-- PeerJS for calls -->
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0d0f14;--sb:#111318;--surf:#161a22;--card:#1e2230;--card2:#242838;
+  --b1:#252b3a;--b2:#2f3549;
+  --ac:#5c6ef5;--ac2:#7b8cf7;--agl:rgba(92,110,245,.18);
+  --gr:#34d399;--rd:#f87171;--gd:#fbbf24;--pu:#a78bfa;
+  --tx:#cdd1e8;--tx2:#8890aa;--tx3:#4a5268;--wh:#eef0fb;
+  --f:'Plus Jakarta Sans',sans-serif;--mo:'JetBrains Mono',monospace;
+  --sbw:255px
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--tx);font-family:var(--f);font-size:14px;line-height:1.5}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--b2);border-radius:4px}
+input,button,textarea{font-family:var(--f)}
+a{color:var(--ac2);text-decoration:none}a:hover{text-decoration:underline}
+.hide{display:none!important}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:_sp .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes _sp{to{transform:rotate(360deg)}}
+
+/* ========= AUTH SCREEN ========= */
+#auth-screen{
+  position:fixed;inset:0;z-index:300;background:var(--bg);
+  background-image:radial-gradient(ellipse at 15% 55%,rgba(92,110,245,.09),transparent 55%),
+                   radial-gradient(ellipse at 82% 12%,rgba(167,139,250,.06),transparent 45%);
+  display:flex;align-items:center;justify-content:center;overflow-y:auto;padding:20px
+}
+.auth-card{
+  width:100%;max-width:420px;background:var(--surf);border-radius:20px;
+  padding:36px 32px;border:1px solid var(--b1);
+  box-shadow:0 24px 80px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.05);
+  margin:auto
+}
+.auth-logo{display:flex;align-items:center;gap:14px;margin-bottom:28px}
+.auth-logo-ico{width:46px;height:46px;border-radius:14px;background:linear-gradient(145deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 20px var(--agl);flex-shrink:0}
+.auth-logo-name{font-size:20px;font-weight:800;color:var(--wh);letter-spacing:-.3px}
+.auth-logo-sub{font-size:11px;color:var(--tx3);letter-spacing:.5px;margin-top:2px}
+.auth-tabs{display:flex;gap:3px;background:rgba(0,0,0,.3);border-radius:10px;padding:3px;margin-bottom:22px}
+.auth-tab{flex:1;padding:9px;border:none;border-radius:8px;font-size:13px;font-weight:700;background:none;color:var(--tx2);transition:all .2s;cursor:pointer}
+.auth-tab.on{background:var(--card2);color:var(--wh);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.astep{display:none}.astep.show{display:block}
+.auth-h{font-size:19px;font-weight:800;color:var(--wh);margin-bottom:5px}
+.auth-p{font-size:13px;color:var(--tx2);margin-bottom:22px;line-height:1.7}
+.flabel{display:block;font-size:11px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.9px;margin-bottom:6px}
+.field{width:100%;background:rgba(0,0,0,.3);border:1px solid var(--b2);border-radius:9px;padding:12px 15px;color:var(--wh);font-size:14px;outline:none;transition:border-color .15s,box-shadow .15s;margin-bottom:16px}
+.field:focus{border-color:var(--ac);box-shadow:0 0 0 3px var(--agl)}.field::placeholder{color:var(--tx3)}.field:disabled{opacity:.4}
+.btn-main{width:100%;background:linear-gradient(135deg,var(--ac),var(--pu));border:none;border-radius:10px;padding:13px;color:#fff;font-size:14px;font-weight:700;transition:all .2s;box-shadow:0 4px 18px var(--agl);cursor:pointer;letter-spacing:.1px}
+.btn-main:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}.btn-main:active{transform:none;filter:none}.btn-main:disabled{opacity:.35;cursor:not-allowed}
+.amsg{border-radius:9px;padding:11px 15px;font-size:13px;margin-bottom:14px;display:none;line-height:1.6}
+.amsg.show{display:block}
+.amsg.e{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:#fca5a5}
+.amsg.i{background:rgba(92,110,245,.1);border:1px solid rgba(92,110,245,.3);color:#a5b4fc}
+.amsg.s{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.3);color:#6ee7b7}
+.auth-sw{text-align:center;font-size:13px;color:var(--tx3);margin-top:16px}
+.auth-sw a{color:var(--ac2);font-weight:600;cursor:pointer}
+
+/* ========= VERIFY SCREEN ========= */
+#vscreen{
+  position:fixed;inset:0;z-index:300;background:var(--bg);
+  background-image:radial-gradient(ellipse at 20% 50%,rgba(92,110,245,.08),transparent 55%);
+  display:none;align-items:center;justify-content:center;padding:20px;overflow-y:auto
+}
+#vscreen.show{display:flex}
+.vcard{width:100%;max-width:420px;background:var(--surf);border-radius:20px;padding:40px 32px;border:1px solid var(--b1);box-shadow:0 24px 80px rgba(0,0,0,.7);text-align:center;margin:auto}
+.vcard .vi{font-size:56px;display:block;margin-bottom:16px}
+.vcard h2{font-size:22px;font-weight:800;color:var(--wh);margin-bottom:10px}
+.vcard p{font-size:13px;color:var(--tx2);line-height:1.75;margin-bottom:10px}
+.vbadge{display:inline-block;background:rgba(0,0,0,.35);border:1px solid var(--b2);border-radius:8px;padding:8px 18px;font-family:var(--mo);font-size:12px;color:var(--ac2);margin-bottom:22px;word-break:break-all;max-width:100%}
+.btn-sec{width:100%;background:var(--card2);border:1px solid var(--b2);border-radius:10px;padding:12px;color:var(--tx2);font-size:13px;font-weight:600;transition:all .15s;margin-top:10px;cursor:pointer}
+.btn-sec:hover{color:var(--wh);border-color:var(--b2)}
+.vnote{margin-top:16px;font-size:12px;color:var(--tx3);font-family:var(--mo);min-height:16px}
+
+/* ========= APP SHELL ========= */
+#app{display:none;height:100vh;flex-direction:row;overflow:hidden}
+#app.alive{display:flex}
+#sb-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:148;backdrop-filter:blur(3px)}
+#sb-ov.show{display:block}
+
+/* ========= SIDEBAR ========= */
+.sidebar{width:var(--sbw);background:var(--sb);display:flex;flex-direction:column;flex-shrink:0;border-right:1px solid var(--b1);z-index:150}
+.sbhead{height:52px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--b1);flex-shrink:0}
+.sbbrand{display:flex;align-items:center;gap:10px}
+.sbico{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--ac),var(--pu));display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.sbnm{font-size:14px;font-weight:800;color:var(--wh)}.sbtag{font-size:10px;color:var(--tx3)}
+.sbscr{flex:1;overflow-y:auto;padding-bottom:8px}
+.sbsec{padding:18px 8px 4px}
+.sblbl{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:1.2px;padding:0 8px;margin-bottom:4px;display:flex;align-items:center;justify-content:space-between}
+.sblbl span{font-weight:400;letter-spacing:0;font-size:11px}
+.chi{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;cursor:pointer;color:var(--tx2);transition:all .12s;font-size:13.5px;font-weight:500}
+.chi:hover{background:rgba(255,255,255,.04);color:var(--tx)}.chi.on{background:rgba(92,110,245,.13);color:var(--wh)}
+.chi.on .chico{color:var(--ac2)}.chico{font-size:14px;width:18px;text-align:center;flex-shrink:0}.chnm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.urow{display:flex;align-items:center;gap:9px;padding:5px 8px;border-radius:8px;cursor:pointer;transition:background .1s}
+.urow:hover{background:rgba(255,255,255,.04)}
+.uav{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;position:relative}
+.uav .udot{position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;border:2px solid var(--sb);background:var(--gr)}
+.unm{font-size:12.5px;color:var(--tx2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.unm.me{color:var(--wh);font-weight:600}
+.ubtns{display:flex;gap:1px;opacity:0;transition:opacity .12s}.urow:hover .ubtns{opacity:1}
+.ubar{padding:8px 10px;background:rgba(0,0,0,.25);border-top:1px solid var(--b1);display:flex;align-items:center;gap:9px;flex-shrink:0}
+.myav{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;position:relative}
+.myav .mdot{position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;border:2px solid var(--sb);background:var(--gr)}
+.myinfo{flex:1;min-width:0}.mynm{font-size:13px;font-weight:700;color:var(--wh);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mysub{font-size:10px;color:var(--tx3)}
+.ubbtns{display:flex;gap:2px}
+.ib{background:none;border:none;color:var(--tx3);padding:5px;border-radius:6px;font-size:15px;transition:all .12s;display:inline-flex;align-items:center;justify-content:center;line-height:1;cursor:pointer}
+.ib:hover{background:rgba(255,255,255,.07);color:var(--tx)}
+
+/* ========= MAIN ========= */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;background:var(--bg)}
+.mhead{height:52px;border-bottom:1px solid var(--b1);display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0}
+.mhburg{display:none}.mhico{font-size:15px;color:var(--tx3);flex-shrink:0}
+.mhtit{font-size:14.5px;font-weight:700;color:var(--wh);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mhdesc{font-size:12px;color:var(--tx3);flex-shrink:0;padding-left:10px;border-left:1px solid var(--b2)}
+.mhr{margin-left:auto;display:flex;gap:3px;flex-shrink:0}
+
+/* CALLBAR */
+#callbar{background:rgba(52,211,153,.07);border-bottom:1px solid rgba(52,211,153,.18);padding:8px 14px;display:none;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap}
+#callbar.show{display:flex}
+.cdot{width:7px;height:7px;border-radius:50%;background:var(--gr);box-shadow:0 0 7px var(--gr);animation:_pu 2s infinite;flex-shrink:0}
+@keyframes _pu{0%,100%{opacity:1}50%{opacity:.3}}
+.clbl{font-size:12px;color:var(--gr);font-weight:700}
+#ctimer{font-family:var(--mo);font-size:12px;color:var(--gr)}
+.cbtn{background:rgba(255,255,255,.06);border:1px solid var(--b2);border-radius:6px;padding:5px 10px;color:var(--tx2);font-size:12px;font-weight:600;transition:all .12s;cursor:pointer}
+.cbtn:hover{border-color:var(--ac);color:var(--tx)}.cbtn.on{background:rgba(92,110,245,.15);border-color:var(--ac);color:var(--ac2)}
+.cbtn.end{border-color:rgba(248,113,113,.4);color:var(--rd)}.cbtn.end:hover{background:rgba(248,113,113,.1)}
+
+/* TYPING BAR */
+#tybar{min-height:20px;padding:0 16px 2px;display:flex;align-items:center;gap:6px;flex-shrink:0}
+.tdots{display:flex;gap:3px;align-items:center}
+.tdots span{width:4px;height:4px;border-radius:50%;background:var(--tx3);animation:_td 1.2s infinite;display:inline-block}
+.tdots span:nth-child(2){animation-delay:.2s}.tdots span:nth-child(3){animation-delay:.4s}
+@keyframes _td{0%,80%,100%{transform:scale(.75);opacity:.4}40%{transform:scale(1.1);opacity:1}}
+#tytxt{font-size:11px;color:var(--tx3);font-style:italic}
+
+/* MESSAGES */
+#mwrap{flex:1;overflow-y:auto;padding:10px 0}
+.daydiv{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:11px;color:var(--tx3);letter-spacing:.4px}
+.daydiv::before,.daydiv::after{content:'';flex:1;height:1px;background:var(--b1)}
+.sysmsg{display:flex;align-items:center;gap:10px;padding:8px 16px;font-size:11px;color:var(--tx3)}
+.sysmsg::before,.sysmsg::after{content:'';flex:1;height:1px;background:var(--b1)}
+.mg{display:flex;gap:12px;padding:3px 16px;transition:background .08s}
+.mg:hover{background:rgba(255,255,255,.013)}.mg.wa{padding-top:8px}
+.avcol{width:36px;flex-shrink:0}
+.mav{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;cursor:pointer;transition:filter .12s}
+.mav:hover{filter:brightness(1.2)}
+.mbody{flex:1;min-width:0}
+.mmeta{display:flex;align-items:baseline;gap:7px;margin-bottom:2px}
+.mauth{font-size:14px;font-weight:700;color:var(--wh);cursor:pointer;transition:color .12s}
+.mauth:hover{color:var(--ac2)}.mauth.me{cursor:default}.mauth.me:hover{color:var(--wh)}
+.mts{font-size:10px;color:var(--tx3);font-family:var(--mo)}
+.mtxt{color:var(--tx);font-size:14px;line-height:1.55;word-break:break-word;white-space:pre-wrap}
+.mtxt a{color:var(--ac2)}
+.mrxns{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.rx{display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.05);border:1px solid var(--b2);border-radius:10px;padding:2px 7px;font-size:13px;transition:all .12s;user-select:none;cursor:pointer}
+.rx:hover,.rx.mine{background:rgba(92,110,245,.18);border-color:var(--ac)}.rxn{font-size:11px;color:var(--tx2)}
+.rxadd{opacity:.4;font-size:11px;padding:2px 6px;background:rgba(255,255,255,.05);border:1px solid var(--b2);border-radius:10px;cursor:pointer;transition:opacity .12s}
+.rxadd:hover{opacity:1}
+/* Peer card */
+.pcard{background:var(--card2);border:1px solid var(--b2);border-radius:10px;padding:13px;max-width:300px;margin-top:5px}
+.pclbl{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:5px}
+.pcid{font-family:var(--mo);font-size:11.5px;color:var(--ac2);word-break:break-all;margin-bottom:9px;line-height:1.6}
+.pcbtns{display:flex;gap:6px;flex-wrap:wrap}
+.pcb{padding:7px 11px;border:none;border-radius:6px;font-size:12px;font-weight:700;transition:filter .12s;cursor:pointer}
+.pcb:hover{filter:brightness(1.1)}.pcb.v{background:linear-gradient(135deg,var(--gr),#0d9e6e);color:#fff}
+.pcb.a{background:linear-gradient(135deg,var(--ac),var(--pu));color:#fff}
+.pcb.c{background:var(--card);border:1px solid var(--b2);color:var(--tx2)}
+
+/* REACTION PICKER */
+#rxpick{position:fixed;background:var(--card2);border:1px solid var(--b2);border-radius:12px;padding:10px;display:none;flex-wrap:wrap;gap:3px;z-index:500;box-shadow:0 8px 32px rgba(0,0,0,.6);max-width:220px}
+#rxpick.show{display:flex}
+#rxpick button{background:none;border:none;font-size:20px;padding:5px;border-radius:7px;transition:background .1s;line-height:1;cursor:pointer}
+#rxpick button:hover{background:rgba(255,255,255,.08)}
+
+/* CHAT INPUT */
+.inwrap{padding:0 14px 14px;flex-shrink:0;position:relative}
+.inbox{background:var(--card);border:1px solid var(--b2);border-radius:12px;display:flex;align-items:flex-end;gap:8px;padding:10px 12px;transition:border-color .15s,box-shadow .15s}
+.inbox:focus-within{border-color:rgba(92,110,245,.45);box-shadow:0 0 0 3px rgba(92,110,245,.08)}
+#chin{flex:1;background:none;border:none;padding:2px 0;color:var(--wh);font-size:14px;outline:none;resize:none;line-height:1.5;max-height:120px;overflow-y:auto;scrollbar-width:none}
+#chin::placeholder{color:var(--tx3)}#chin::-webkit-scrollbar{display:none}
+.etog{background:none;border:none;font-size:18px;color:var(--tx3);padding:3px 4px;border-radius:6px;transition:all .12s;flex-shrink:0;cursor:pointer}
+.etog:hover{color:var(--gd);background:rgba(255,255,255,.06)}
+.sendbtn{background:linear-gradient(135deg,var(--ac),var(--pu));border:none;border-radius:8px;width:34px;height:34px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;transition:all .15s;cursor:pointer}
+.sendbtn:hover{filter:brightness(1.1);transform:scale(1.06)}.sendbtn:active{transform:scale(.94)}
+#epanel{position:absolute;bottom:70px;left:14px;right:14px;max-width:310px;background:var(--card2);border:1px solid var(--b2);border-radius:12px;padding:10px;display:none;flex-wrap:wrap;gap:2px;z-index:200;box-shadow:0 10px 36px rgba(0,0,0,.5)}
+#epanel.show{display:flex}
+#epanel button{background:none;border:none;font-size:19px;padding:5px;border-radius:7px;transition:background .1s;line-height:1;cursor:pointer}
+#epanel button:hover{background:rgba(255,255,255,.07)}
+
+/* VIEWS */
+#vchat{display:flex;flex:1;flex-direction:column;overflow:hidden}
+#vcall{display:none;flex-direction:column;align-items:center;justify-content:flex-start;gap:14px;padding:20px 16px;overflow-y:auto;flex:1}
+#vpatches{display:none;overflow-y:auto;flex:1}
+#vhelp{display:none;overflow-y:auto;flex:1}
+
+/* CALL VIEW */
+.vgrid{display:grid;gap:8px;width:100%;max-width:680px}
+.vgrid.s1{grid-template-columns:1fr}.vgrid.s2,.vgrid.s3,.vgrid.s4{grid-template-columns:1fr 1fr}
+.vslot{position:relative;border-radius:12px;overflow:hidden;background:#000;border:1px solid var(--b1);aspect-ratio:16/9}
+.vslot video{width:100%;height:100%;object-fit:cover;display:block}
+.vnm{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.72);color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px}
+.csetup{background:var(--surf);border:1px solid var(--b1);border-radius:14px;padding:24px;width:100%;max-width:460px}
+.csetup h3{font-size:16px;font-weight:700;color:var(--wh);margin-bottom:5px}
+.csetup p{font-size:13px;color:var(--tx3);margin-bottom:18px;line-height:1.7}
+.peerbox{background:rgba(0,0,0,.28);border:1px solid var(--b2);border-radius:8px;padding:11px 14px;margin-bottom:14px}
+.peerbox .pl{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.peerbox .pv{font-family:var(--mo);font-size:11.5px;color:var(--ac2);word-break:break-all;line-height:1.6}
+.ctrlbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.ctrl{background:var(--card2);border:1px solid var(--b2);border-radius:8px;padding:9px 16px;color:var(--tx2);font-size:12px;font-weight:600;transition:all .12s;cursor:pointer}
+.ctrl:hover{border-color:var(--ac);color:var(--tx)}.ctrl.on{background:rgba(92,110,245,.15);border-color:var(--ac);color:var(--ac2)}
+.ctrl.endc{background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.4);color:var(--rd)}
+.bcall{flex:1;padding:11px;border:none;border-radius:9px;font-size:13px;font-weight:700;transition:all .15s;cursor:pointer}
+.bcall:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-1px)}.bcall:disabled{opacity:.3;transform:none;cursor:not-allowed}
+.bcall.vc{background:linear-gradient(135deg,var(--gr),#0d9e6e);color:#fff}
+.bcall.ac{background:linear-gradient(135deg,var(--ac),var(--pu));color:#fff}
+
+/* DM PANEL */
+#dmpanel{width:275px;background:var(--sb);border-left:1px solid var(--b1);display:none;flex-direction:column;flex-shrink:0}
+#dmpanel.show{display:flex}
+.dmhead{height:52px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--b1);gap:8px}
+.dmtit{font-size:14px;font-weight:700;color:var(--wh);flex:1}
+#dmmsgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px}
+.dmmsg{display:flex;flex-direction:column}
+.dmmeta{font-size:10px;color:var(--tx3);font-family:var(--mo);margin-bottom:3px}
+.dmbub{padding:8px 12px;font-size:13px;line-height:1.5;word-break:break-word;max-width:88%}
+.dmbub.mine{background:linear-gradient(135deg,var(--ac),var(--pu));color:#fff;border-radius:12px 12px 2px 12px;align-self:flex-end}
+.dmbub.theirs{background:var(--card2);color:var(--tx);border:1px solid var(--b2);border-radius:12px 12px 12px 2px;align-self:flex-start}
+.dmia{padding:10px 12px;border-top:1px solid var(--b1)}
+.dmibox{background:var(--card);border:1px solid var(--b2);border-radius:9px;display:flex;align-items:center;padding:0 10px;transition:border-color .15s}
+.dmibox:focus-within{border-color:rgba(92,110,245,.45)}
+.dmibox input{flex:1;background:none;border:none;padding:9px 0;color:var(--wh);font-size:13px;outline:none}
+.dmibox input::placeholder{color:var(--tx3)}
+.dmsend{background:none;border:none;color:var(--tx3);font-size:16px;padding:3px;display:flex;align-items:center;transition:color .12s;cursor:pointer}
+.dmsend:hover{color:var(--ac2)}
+
+/* INCOMING CALL */
+#incoming{position:fixed;bottom:18px;right:18px;background:var(--surf);border:1px solid rgba(52,211,153,.3);border-radius:14px;padding:16px 18px;z-index:600;display:none;flex-direction:column;gap:10px;min-width:235px;box-shadow:0 12px 48px rgba(0,0,0,.65)}
+#incoming.show{display:flex;animation:_inc .28s cubic-bezier(.4,0,.2,1)}
+@keyframes _inc{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+.inctit{font-size:13px;font-weight:700;color:var(--wh);display:flex;align-items:center;gap:7px}
+.incfr{font-size:12px;color:var(--tx2)}
+.incbtns{display:flex;gap:8px}
+.incbtn{flex:1;padding:9px;border:none;border-radius:8px;font-size:13px;font-weight:700;transition:filter .12s;cursor:pointer}
+.incbtn:hover{filter:brightness(1.1)}.incbtn.ans{background:linear-gradient(135deg,var(--gr),#0d9e6e);color:#fff}
+.incbtn.dec{background:linear-gradient(135deg,var(--rd),#dc2626);color:#fff}
+
+/* DOCS */
+.docwrap{padding:24px 20px;max-width:680px;width:100%;margin:0 auto}
+.doctit{font-size:22px;font-weight:800;color:var(--wh);margin-bottom:4px}
+.docsub{font-size:13px;color:var(--tx3);margin-bottom:24px}
+.dsh{font-size:12px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.9px;margin:22px 0 10px;display:flex;align-items:center;gap:8px}
+.dsh::after{content:'';flex:1;height:1px;background:var(--b1)}
+.dcard{background:var(--surf);border:1px solid var(--b1);border-radius:11px;padding:15px 16px;margin-bottom:7px}
+.dcard h4{font-size:13px;font-weight:700;color:var(--wh);margin-bottom:7px}
+.dcard p,.dcard li{font-size:13px;color:var(--tx2);line-height:1.85}
+.dcard ul,.dcard ol{padding-left:18px}.dcard li{margin-bottom:3px}
+.dcard code{font-family:var(--mo);font-size:11.5px;background:rgba(0,0,0,.3);padding:1px 5px;border-radius:4px;color:var(--ac2)}
+.patchi{display:flex;gap:12px;background:var(--surf);border:1px solid var(--b1);border-radius:11px;padding:13px 14px;margin-bottom:7px}
+.pver{font-family:var(--mo);font-size:11px;font-weight:700;color:var(--ac2);background:rgba(92,110,245,.12);border:1px solid rgba(92,110,245,.2);border-radius:5px;padding:2px 8px;white-space:nowrap;height:fit-content;margin-top:1px}
+.pdate{font-size:11px;color:var(--tx3);font-family:var(--mo);margin-bottom:5px}
+.plines{font-size:12.5px;color:var(--tx2);line-height:2}
+.pt{display:inline-block;font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px;margin-right:4px;text-transform:uppercase;letter-spacing:.3px}
+.pt.n{background:rgba(52,211,153,.15);color:var(--gr)}.pt.f{background:rgba(248,113,113,.15);color:var(--rd)}.pt.c{background:rgba(251,191,36,.15);color:var(--gd)}
+
+/* TOAST */
+#toasts{position:fixed;top:14px;right:14px;z-index:700;display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.toast{background:var(--card2);border:1px solid var(--b2);border-radius:10px;padding:10px 15px;font-size:13px;color:var(--tx);box-shadow:0 8px 28px rgba(0,0,0,.5);pointer-events:all;animation:_tin .22s ease;max-width:280px;display:flex;align-items:center;gap:8px}
+@keyframes _tin{from{opacity:0;transform:translateY(-7px)}}
+.toast.out{animation:_tout .22s ease forwards}
+@keyframes _tout{to{opacity:0;transform:translateY(-7px)}}
+.toast.ok{border-color:rgba(52,211,153,.3)}.toast.ok::before{content:'✓';color:var(--gr);font-weight:700}
+.toast.er{border-color:rgba(248,113,113,.3)}.toast.er::before{content:'!';color:var(--rd);font-weight:700}
+.toast.in{border-color:rgba(92,110,245,.3)}.toast.in::before{content:'i';color:var(--ac2);font-weight:700}
+
+/* MODAL */
+#modalbg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:800;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+#modalbg.show{display:flex}
+.modal{background:var(--surf);border:1px solid var(--b1);border-radius:16px;padding:24px;width:100%;max-width:380px;box-shadow:0 24px 64px rgba(0,0,0,.7);animation:_min .2s ease}
+@keyframes _min{from{opacity:0;transform:scale(.96)}}
+.modal h3{font-size:16px;font-weight:700;color:var(--wh);margin-bottom:6px}
+.modal p{font-size:13px;color:var(--tx2);margin-bottom:20px;line-height:1.65}
+.mbtns{display:flex;gap:8px;justify-content:flex-end}
+.mbtn{padding:9px 18px;border:none;border-radius:8px;font-size:13px;font-weight:600;transition:filter .12s;cursor:pointer}
+.mbtn:hover{filter:brightness(1.1)}.mbtn.cancel{background:var(--card2);color:var(--tx2)}.mbtn.danger{background:linear-gradient(135deg,var(--rd),#dc2626);color:#fff}
+
+/* STATUS BAR */
+#statbar{height:21px;background:rgba(0,0,0,.18);border-top:1px solid var(--b1);display:flex;align-items:center;padding:0 14px;gap:6px;font-size:11px;color:var(--tx3);flex-shrink:0;font-family:var(--mo)}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--tx3);flex-shrink:0}
+.sdot.g{background:var(--gr);box-shadow:0 0 5px var(--gr)}.sdot.r{background:var(--rd)}.sdot.y{background:var(--gd)}
+
+/* AVATAR COLORS */
+.av0{background:linear-gradient(135deg,#5c6ef5,#a78bfa)}.av1{background:linear-gradient(135deg,#34d399,#0d9488)}
+.av2{background:linear-gradient(135deg,#f87171,#dc2626)}.av3{background:linear-gradient(135deg,#fbbf24,#d97706)}
+.av4{background:linear-gradient(135deg,#f472b6,#be185d)}.av5{background:linear-gradient(135deg,#38bdf8,#0369a1)}
+.av6{background:linear-gradient(135deg,#a78bfa,#7c3aed)}.av7{background:linear-gradient(135deg,#fb923c,#c2410c)}
+
+/* MOBILE */
+@media(max-width:680px){
+  :root{--sbw:83vw}
+  .sidebar{position:fixed;top:0;left:0;bottom:0;transform:translateX(-100%);transition:transform .24s cubic-bezier(.4,0,.2,1)}
+  .sidebar.open{transform:none}
+  #dmpanel{position:fixed;top:0;right:0;bottom:0;width:86vw;transform:translateX(100%);transition:transform .24s cubic-bezier(.4,0,.2,1);z-index:149}
+  #dmpanel.show{transform:none}
+  .mhburg{display:inline-flex}.mhdesc{display:none!important}
+  #sbclose{display:inline-flex!important}
+}
+@media(max-width:480px){.auth-card,.vcard{padding:28px 18px}.csetup{padding:18px}.docwrap{padding:16px}}
+</style>
+</head>
+<body>
+
+<div id="toasts"></div>
+
+<div id="modalbg">
+  <div class="modal">
+    <h3 id="modtit">Hold on</h3><p id="modbod">Are you sure?</p>
+    <div class="mbtns"><button class="mbtn cancel" onclick="closeModal()">Nah, cancel</button><button class="mbtn danger" id="modok">Yeah, do it</button></div>
+  </div>
+</div>
+
+<!-- ===== AUTH ===== -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-ico">💬</div>
+      <div><div class="auth-logo-name">Omer 'N Chat</div><div class="auth-logo-sub">your private hangout spot</div></div>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab on" id="tsi" onclick="authTab('si')">Sign In</button>
+      <button class="auth-tab" id="tsu" onclick="authTab('su')">Sign Up</button>
+    </div>
+    <div class="amsg e" id="aerr"></div>
+    <div class="amsg i" id="ainf"></div>
+
+    <!-- SIGN IN -->
+    <div class="astep show" id="ssi">
+      <div class="auth-h">Welcome back! 👋</div>
+      <div class="auth-p">Sign in with your email and password below.</div>
+      <label class="flabel" for="si-em">Email Address</label>
+      <input class="field" id="si-em" type="email" placeholder="you@example.com" autocomplete="email"/>
+      <label class="flabel" for="si-pw">Password</label>
+      <input class="field" id="si-pw" type="password" placeholder="Your password" autocomplete="current-password"/>
+      <button class="btn-main" id="btn-si" onclick="doSignIn()">Sign In</button>
+      <div class="auth-sw">No account yet? <a onclick="authTab('su')">Sign up free →</a></div>
+    </div>
+
+    <!-- SIGN UP -->
+    <div class="astep" id="ssu">
+      <div class="auth-h">Create your account ✨</div>
+      <div class="auth-p">We'll email you a verification link to confirm it's really you. Your <strong style="color:var(--wh)">display name is permanent</strong> — pick something you like!</div>
+      <label class="flabel" for="su-nm">Display Name <span style="color:var(--rd)">*</span></label>
+      <input class="field" id="su-nm" type="text" placeholder="e.g. Omer, CoolDude99…" maxlength="32" autocomplete="off" spellcheck="false"/>
+      <label class="flabel" for="su-em">Email Address</label>
+      <input class="field" id="su-em" type="email" placeholder="you@example.com" autocomplete="email"/>
+      <label class="flabel" for="su-pw">Password</label>
+      <input class="field" id="su-pw" type="password" placeholder="At least 8 characters" autocomplete="new-password"/>
+      <button class="btn-main" id="btn-su" onclick="doSignUp()">Create Account &amp; Send Verification Email</button>
+      <div class="auth-sw">Already have one? <a onclick="authTab('si')">Sign in →</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== VERIFY ===== -->
+<div id="vscreen">
+  <div class="vcard">
+    <span class="vi">📬</span>
+    <h2>Check your inbox!</h2>
+    <p>We sent a verification link to:</p>
+    <div class="vbadge" id="vemail">your email</div>
+    <p>Open that email and click the link inside. Once you've done that, come back here and tap the button below.</p>
+    <div class="amsg e" id="verr"></div>
+    <div class="amsg s" id="vok"></div>
+    <button class="btn-main" onclick="checkVerify()" style="margin-top:8px">✅ I clicked the link — let me in!</button>
+    <button class="btn-sec" onclick="resendVerify()">↻ Resend verification email</button>
+    <button class="btn-sec" onclick="doSignOut()" style="color:var(--tx3);margin-top:4px">← Back to sign in</button>
+    <div class="vnote" id="vnote"></div>
+  </div>
+</div>
+
+<!-- ===== INCOMING CALL ===== -->
+<div id="incoming">
+  <div class="inctit">📞 Incoming call!</div>
+  <div class="incfr" id="incfrom">from someone</div>
+  <div class="incbtns">
+    <button class="incbtn ans" onclick="answerCall()">✓ Answer</button>
+    <button class="incbtn dec" onclick="rejectCall()">✕ Decline</button>
+  </div>
+</div>
+
+<div id="rxpick"></div>
+
+<!-- ===== APP ===== -->
+<div id="app">
+  <div id="sb-ov" onclick="closeSB()"></div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <div class="sbhead">
+      <div class="sbbrand">
+        <div class="sbico">💬</div>
+        <div><div class="sbnm">Omer 'N Chat</div><div class="sbtag">private hangout</div></div>
+      </div>
+      <div style="display:flex;gap:2px">
+        <button class="ib" onclick="copyInvite(this)" title="Copy invite link">🔗</button>
+        <button class="ib" id="sbclose" onclick="closeSB()" style="display:none">✕</button>
+      </div>
+    </div>
+    <div class="sbscr">
+      <div class="sbsec">
+        <div class="sblbl">Channels</div>
+        <div class="chi on" id="nvchat"    onclick="goView('chat',this)"><span class="chico">#</span><span class="chnm">general</span></div>
+        <div class="chi"    id="nvcall"    onclick="goView('call',this)"><span class="chico">🎙</span><span class="chnm">voice &amp; video</span></div>
+        <div class="chi"    id="nvpatches" onclick="goView('patches',this)"><span class="chico">📋</span><span class="chnm">patch notes</span></div>
+        <div class="chi"    id="nvhelp"    onclick="goView('help',this)"><span class="chico">❓</span><span class="chnm">help</span></div>
+      </div>
+      <div class="sbsec">
+        <div class="sblbl">Online <span id="ocnt">0</span></div>
+        <div id="ulist"></div>
+      </div>
+    </div>
+    <div class="ubar">
+      <div class="myav av0" id="myav">??<div class="mdot"></div></div>
+      <div class="myinfo"><div class="mynm" id="mynm">—</div><div class="mysub">🟢 Online</div></div>
+      <div class="ubbtns">
+        <button class="ib" id="barmute" onclick="toggleMute()" title="Mute">🎤</button>
+        <button class="ib" onclick="confirmSignOut()" title="Sign out" style="font-size:13px">🚪</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="mhead">
+      <button class="ib mhburg" onclick="openSB()">☰</button>
+      <span class="mhico" id="mhico">#</span>
+      <span class="mhtit" id="mhtit">general</span>
+      <span class="mhdesc" id="mhdesc">Room chat for everyone</span>
+      <div class="mhr">
+        <button class="ib" onclick="goView('call',document.getElementById('nvcall'))" title="Calls">📞</button>
+        <button class="ib" onclick="toggleDM()" title="Direct Messages">💌</button>
+      </div>
+    </div>
+    <div id="callbar">
+      <div class="cdot"></div>
+      <span class="clbl" id="clbl">Call active</span>
+      <span id="ctimer">00:00</span>
+      <div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="cbtn" id="cbmute"   onclick="toggleMute()">🎤 Mute</button>
+        <button class="cbtn" id="cbcam"    onclick="toggleCam()">📷 Cam</button>
+        <button class="cbtn" id="cbscr"    onclick="toggleScreen()">🖥 Share</button>
+        <button class="cbtn end"           onclick="endCall()">📵 End</button>
+      </div>
+    </div>
+    <div id="tybar"><div class="tdots hide" id="tdots"><span></span><span></span><span></span></div><span id="tytxt"></span></div>
+
+    <!-- CHAT VIEW -->
+    <div id="vchat">
+      <div id="mwrap"><div class="sysmsg" style="margin-top:8px">Welcome to Omer 'N Chat 👋</div></div>
+      <div id="epanel"></div>
+      <div class="inwrap">
+        <div class="inbox">
+          <button class="etog" onclick="toggleEmoji(event)">😊</button>
+          <textarea id="chin" placeholder="Say something…" rows="1" onkeydown="chatKey(event)" oninput="autoGrow(this);onTyping()"></textarea>
+          <button class="sendbtn" onclick="sendChat()">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CALL VIEW -->
+    <div id="vcall">
+      <div class="vgrid s1" id="vgrid" style="display:none">
+        <div class="vslot"><video id="lv" autoplay muted playsinline></video><div class="vnm" id="lvnm">You</div></div>
+        <div class="vslot hide" id="rv1s"><video id="rv1" autoplay playsinline></video><div class="vnm" id="rv1n">Friend 1</div></div>
+        <div class="vslot hide" id="rv2s"><video id="rv2" autoplay playsinline></video><div class="vnm" id="rv2n">Friend 2</div></div>
+        <div class="vslot hide" id="rv3s"><video id="rv3" autoplay playsinline></video><div class="vnm" id="rv3n">Friend 3</div></div>
+      </div>
+      <div class="ctrlbar hide" id="cctrls">
+        <button class="ctrl" id="ctrlmute"   onclick="toggleMute()">🎤 Mute</button>
+        <button class="ctrl" id="ctrlcam"    onclick="toggleCam()">📷 Cam Off</button>
+        <button class="ctrl" id="ctrlscr"    onclick="toggleScreen()">🖥 Share Screen</button>
+        <button class="ctrl endc"            onclick="endCall()">📵 End Call</button>
+      </div>
+      <div class="csetup" id="csetup">
+        <h3>Voice &amp; Video 🎙</h3>
+        <p>Your Peer ID is automatically posted in #general when you join. Click 📹 or 🎙 on someone's card to call them, or paste their ID below.</p>
+        <div class="peerbox"><div class="pl">Your Peer ID</div><div class="pv" id="mypid">Connecting…</div></div>
+        <div style="margin-bottom:10px"><label class="flabel">Friend 1</label><input class="field" id="t1" placeholder="Paste their Peer ID…" style="margin-bottom:0"/></div>
+        <div style="margin-bottom:10px"><label class="flabel">Friend 2 <span style="color:var(--tx3);font-weight:400">(optional)</span></label><input class="field" id="t2" placeholder="Paste their Peer ID…" style="margin-bottom:0"/></div>
+        <div style="margin-bottom:16px"><label class="flabel">Friend 3 <span style="color:var(--tx3);font-weight:400">(optional)</span></label><input class="field" id="t3" placeholder="Paste their Peer ID…" style="margin-bottom:0"/></div>
+        <div style="display:flex;gap:8px">
+          <button class="bcall vc" id="bvc" onclick="startCall(false)" disabled>📹 Video Call</button>
+          <button class="bcall ac" id="bac" onclick="startCall(true)"  disabled>🎙 Voice Only</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PATCHES VIEW -->
+    <div id="vpatches">
+      <div class="docwrap">
+        <div class="doctit">📋 Patch Notes</div>
+        <div class="docsub">What's been added, fixed, and changed</div>
+        <div class="patchi">
+          <div class="pver">v2.3</div>
+          <div>
+            <div class="pdate">March 2026 — Latest</div>
+            <div class="plines">
+              <span class="pt f">fix</span> Rebuilt from scratch — no more broken file errors<br>
+              <span class="pt f">fix</span> Switched to Firebase compat SDK (no ES modules)<br>
+              <span class="pt f">fix</span> All buttons and inputs now work correctly<br>
+              <span class="pt f">fix</span> Email/password auth + verification flow fully working<br>
+              <span class="pt f">fix</span> Call timer ticks once per second (not twice)<br>
+              <span class="pt f">fix</span> DM input key handler name conflict resolved<br>
+              <span class="pt f">fix</span> Typing state cleans up on sign-out and page close<br>
+              <span class="pt f">fix</span> Mobile DM overlay closes properly<br>
+              <span class="pt f">fix</span> Reaction picker centered correctly on mobile<br>
+              <span class="pt f">fix</span> Smart scroll (only jumps down when near bottom)<br>
+              <span class="pt f">fix</span> XSS protection on all user content<br>
+              <span class="pt n">new</span> Emoji reactions on messages<br>
+              <span class="pt n">new</span> Live typing indicators<br>
+              <span class="pt n">new</span> Emoji picker in chat input<br>
+              <span class="pt n">new</span> Auto-growing textarea<br>
+              <span class="pt n">new</span> Day dividers between messages<br>
+              <span class="pt n">new</span> Toast notifications<br>
+              <span class="pt n">new</span> Sign-out confirmation modal<br>
+              <span class="pt c">change</span> Font → Plus Jakarta Sans<br>
+              <span class="pt c">change</span> Friendlier copy and error messages throughout
+            </div>
+          </div>
+        </div>
+        <div class="patchi">
+          <div class="pver">v2.0</div>
+          <div><div class="pdate">February 2026</div>
+          <div class="plines">
+            <span class="pt n">new</span> Firebase Auth (email + Google)<br>
+            <span class="pt n">new</span> Email verification flow<br>
+            <span class="pt n">new</span> Permanent display names<br>
+            <span class="pt n">new</span> Mobile layout with hamburger menu<br>
+            <span class="pt f">fix</span> Presence cleanup on sign-out
+          </div></div>
+        </div>
+        <div class="patchi">
+          <div class="pver">v1.0</div>
+          <div><div class="pdate">January 2026 — Initial Release</div>
+          <div class="plines">
+            <span class="pt n">new</span> Real-time group chat (Firebase Firestore)<br>
+            <span class="pt n">new</span> P2P calls via PeerJS — up to 4 people<br>
+            <span class="pt n">new</span> Private DMs<br>
+            <span class="pt n">new</span> Screen sharing<br>
+            <span class="pt n">new</span> Online presence list<br>
+            <span class="pt n">new</span> Peer ID cards for 1-click calling
+          </div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HELP VIEW -->
+    <div id="vhelp">
+      <div class="docwrap">
+        <div class="doctit">Help &amp; Guide ❓</div>
+        <div class="docsub">Everything you need to know</div>
+        <div class="dsh">🚀 Getting Started</div>
+        <div class="dcard"><h4>Signing up</h4><ol><li>Enter your email and a password</li><li>Check your inbox — we'll send a verification link</li><li>Click the link in the email</li><li>Come back and press "I clicked the link — let me in!"</li><li>You're in! Say hi in #general 👋</li></ol></div>
+        <div class="dcard"><h4>🔒 Display name is permanent</h4><p>Your name gets locked in when you first sign up — you can't change it later. This keeps things honest and stops impersonation.</p></div>
+        <div class="dsh">💬 Chat</div>
+        <div class="dcard"><h4>Sending messages</h4><p>Type in the box and press <code>Enter</code> to send. Use <code>Shift+Enter</code> for a new line. Click 😊 for emojis. URLs auto-link!</p></div>
+        <div class="dcard"><h4>😄 Reactions</h4><p>Hover any message and click the <strong style="color:var(--wh)">+</strong> to react with an emoji. Click an existing reaction to add yours too.</p></div>
+        <div class="dsh">💌 DMs</div>
+        <div class="dcard"><h4>Direct messages</h4><p>Click anyone's name in the Online list or in chat. The DM panel slides in from the right. Fully private — just you two.</p></div>
+        <div class="dsh">📞 Calls</div>
+        <div class="dcard"><h4>Starting a call</h4><ol><li>Go to 🎙 Voice &amp; Video</li><li>Find their Peer ID card in #general</li><li>Click 📹 Video or 🎙 Voice</li><li>They accept and you're connected!</li></ol></div>
+        <div class="dcard"><h4>Troubleshooting</h4><ul>
+          <li><strong style="color:var(--wh)">No audio?</strong> Click anywhere on the page first — browsers require a user interaction before playing audio</li>
+          <li><strong style="color:var(--wh)">Can't connect?</strong> Peer IDs reset on reload — grab a fresh one from #general</li>
+          <li><strong style="color:var(--wh)">School WiFi?</strong> Some networks block WebRTC — try mobile data</li>
+          <li><strong style="color:var(--wh)">Camera blocked?</strong> Click the lock icon in your URL bar and allow access</li>
+        </ul></div>
+      </div>
+    </div>
+
+    <div id="statbar"><div class="sdot" id="sdot"></div><span id="stattxt">Connecting…</span></div>
+  </div>
+
+  <!-- DM PANEL -->
+  <div id="dmpanel">
+    <div class="dmhead">
+      <div class="dmtit" id="dmtit">Direct Message</div>
+      <button class="ib" onclick="closeDM()" style="margin-left:auto">✕</button>
+    </div>
+    <div id="dmmsgs"></div>
+    <div class="dmia">
+      <div class="dmibox">
+        <input id="dmin" placeholder="Message…" onkeydown="dmInputKey(event)"/>
+        <button class="dmsend" onclick="sendDM()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  OMER 'N CHAT  v2.3
+//  Firebase compat SDK — plain JS, no ES modules
+// ============================================================
+
+// ── Firebase config ──────────────────────────────────────
+var FBCFG = {
+  apiKey:            "AIzaSyDfyR_WcrlPX_CIU-fklEPqVFY-kHrzSss",
+  authDomain:        "callnchat-d1b1a.firebaseapp.com",
+  projectId:         "callnchat-d1b1a",
+  storageBucket:     "callnchat-d1b1a.firebasestorage.app",
+  messagingSenderId: "190123167188",
+  appId:             "1:190123167188:web:279f9befac8efa07a3da41"
+};
+
+// ── State ────────────────────────────────────────────────
+var db, auth;
+var username = '', myPid = '';
+var peer, pendingCall, localStream, screenStream;
+var muted = false, camOff = false, screening = false;
+var callSecs = 0, callInterval = null;
+var activeCalls = {};
+var seenIds = {};
+var dmTarget = null, dmUnsub = null;
+var presRef = null, hb = null;
+var typTimer = null, isTyping = false, typUnsub = null;
+var lastDay = '';
+
+// ── Wait for Firebase SDKs to load ──────────────────────
+function waitFB(cb, n) {
+  n = n || 0;
+  if (window.firebase && window.firebase.firestore && window.firebase.auth) {
+    return cb();
+  }
+  if (n > 100) {
+    toast('Firebase failed to load — check your internet and refresh.', 'er', 10000);
+    return;
+  }
+  setTimeout(function() { waitFB(cb, n + 1); }, 100);
+}
+
+// ── Boot ─────────────────────────────────────────────────
+waitFB(function() {
+  firebase.initializeApp(FBCFG);
+  db   = firebase.firestore();
+  auth = firebase.auth();
+
+  auth.onAuthStateChanged(function(user) {
+    if (!user) {
+      // Not signed in — show auth screen
+      G('auth-screen').style.display = 'flex';
+      G('vscreen').classList.remove('show');
+      G('app').classList.remove('alive');
+      return;
+    }
+
+    // Signed in — check email verification
+    if (!user.emailVerified) {
+      G('auth-screen').style.display = 'none';
+      showVerifyScreen(user.email);
+      return;
+    }
+
+    // Verified! Load profile and launch
+    G('auth-screen').style.display = 'none';
+    G('vscreen').classList.remove('show');
+    getOrCreateProfile(user.uid, user.email.split('@')[0])
+      .then(function(name) {
+        username = name;
+        launchApp();
+      })
+      .catch(function(e) {
+        showAuthErr('Could not load your profile: ' + e.message);
+        G('auth-screen').style.display = 'flex';
+      });
+  });
+});
+
+// ── Firestore paths ──────────────────────────────────────
+function mCol()  { return db.collection('nexus').doc('room1').collection('messages'); }
+function pCol()  { return db.collection('nexus').doc('room1').collection('presence'); }
+function tCol()  { return db.collection('nexus').doc('room1').collection('typing'); }
+function dCol(k) { return db.collection('nexus').doc('room1').collection('dms').doc(k).collection('messages'); }
+function dmKeyFor(a, b) { return [a, b].sort().join('__'); }
+
+// ── Utils ────────────────────────────────────────────────
+var AVC = ['av0','av1','av2','av3','av4','av5','av6','av7'];
+var CC = {};
+function colorFor(n) {
+  if (!CC[n]) { var h = 0; for (var i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0; CC[n] = AVC[h % AVC.length]; }
+  return CC[n];
+}
+function ini(n)  { return n ? n.slice(0, 2).toUpperCase() : '??'; }
+function esc(t)  { if (t == null) return ''; var d = document.createElement('div'); d.textContent = String(t); return d.innerHTML; }
+function ea(t)   { return String(t || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function G(id)   { return document.getElementById(id); }
+function fmtT(ts) {
+  if (!ts) return '';
+  var d = ts.toDate ? ts.toDate() : new Date();
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+function fmtD(ts) {
+  if (!ts) return '';
+  var d = ts.toDate ? ts.toDate() : new Date(), now = new Date();
+  if (d.toDateString() === now.toDateString()) return 'Today';
+  var y = new Date(now); y.setDate(y.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' });
+}
+function linkify(h) { return h.replace(/(https?:\/\/[^\s<"&]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'); }
+function autoGrow(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+
+// ── Toast ─────────────────────────────────────────────────
+function toast(msg, type, dur) {
+  type = type || 'in'; dur = dur || 3500;
+  var c = G('toasts'), t = document.createElement('div');
+  t.className = 'toast ' + type; t.textContent = msg; c.appendChild(t);
+  setTimeout(function() { t.classList.add('out'); setTimeout(function() { if (t.parentNode) t.parentNode.removeChild(t); }, 260); }, dur);
+}
+
+// ── Modal ─────────────────────────────────────────────────
+function closeModal() { G('modalbg').classList.remove('show'); }
+function showModal(tit, bod, okLbl, cb) {
+  G('modtit').textContent = tit; G('modbod').textContent = bod;
+  var b = G('modok'); b.textContent = okLbl;
+  b.onclick = function() { closeModal(); cb(); };
+  G('modalbg').classList.add('show');
+}
+
+// ── Status bar ────────────────────────────────────────────
+function setStat(txt, s) {
+  G('stattxt').textContent = txt;
+  var d = G('sdot'); d.className = 'sdot' + (s === 'g' ? ' g' : s === 'r' ? ' r' : s === 'y' ? ' y' : '');
+}
+
+// ── Auth UI helpers ───────────────────────────────────────
+function authTab(t) {
+  G('tsi').classList.toggle('on', t === 'si');
+  G('tsu').classList.toggle('on', t === 'su');
+  G('ssi').classList.toggle('show', t === 'si');
+  G('ssu').classList.toggle('show', t === 'su');
+  G('aerr').classList.remove('show');
+  G('ainf').classList.remove('show');
+}
+function showAuthErr(m) { G('aerr').textContent = m; G('aerr').classList.add('show'); G('ainf').classList.remove('show'); }
+function setBusy(id, on) {
+  var b = G(id); if (!b) return;
+  if (!b._o) b._o = b.innerHTML;
+  b.disabled = on;
+  b.innerHTML = on ? '<span class="spin"></span>One sec\u2026' : b._o;
+}
+function friendlyErr(code) {
+  var map = {
+    'auth/email-already-in-use':   'That email already has an account — try signing in!',
+    'auth/invalid-email':           "That doesn't look like a valid email address.",
+    'auth/weak-password':           'Password needs to be at least 8 characters.',
+    'auth/user-not-found':          "No account found with that email. Want to sign up instead?",
+    'auth/wrong-password':          "Wrong password — try again!",
+    'auth/invalid-credential':      "Email or password didn't match. Double-check and try again.",
+    'auth/too-many-requests':       "Too many failed attempts. Wait a few minutes and try again.",
+    'auth/network-request-failed':  "Can't reach the server — check your internet connection.",
+  };
+  return map[code] || ('Error: ' + code);
+}
+
+// ── Profile (locked display name) ─────────────────────────
+function getOrCreateProfile(uid, suggested) {
+  var ref = db.collection('nexus').doc('profile-' + uid);
+  return ref.get().then(function(snap) {
+    if (snap.exists && snap.data().displayName) return snap.data().displayName;
+    var safe = String(suggested || '').trim().replace(/[<>"'&]/g, '').slice(0, 32) || ('User' + uid.slice(0, 6));
+    return ref.set({
+      displayName: safe, uid: uid,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function() { return safe; });
+  });
+}
+
+// ── Sign Up ───────────────────────────────────────────────
+function doSignUp() {
+  G('aerr').classList.remove('show');
+  var name  = G('su-nm').value.trim();
+  var email = G('su-em').value.trim();
+  var pass  = G('su-pw').value;
+  if (name.length < 2)  { showAuthErr('Choose a display name with at least 2 characters!'); return; }
+  if (!email)            { showAuthErr("Don't forget your email address!"); return; }
+  if (pass.length < 8)  { showAuthErr('Password must be at least 8 characters.'); return; }
+  setBusy('btn-su', true);
+  auth.createUserWithEmailAndPassword(email, pass)
+    .then(function(cred) {
+      // Save the display name they chose
+      return getOrCreateProfile(cred.user.uid, name)
+        .then(function() {
+          // Send verification email
+          return cred.user.sendEmailVerification();
+        })
+        .then(function() {
+          showVerifyScreen(email);
+        });
+    })
+    .catch(function(e) { showAuthErr(friendlyErr(e.code)); })
+    .finally(function() { setBusy('btn-su', false); });
+}
+
+// ── Sign In ───────────────────────────────────────────────
+function doSignIn() {
+  G('aerr').classList.remove('show');
+  var email = G('si-em').value.trim();
+  var pass  = G('si-pw').value;
+  if (!email || !pass) { showAuthErr('Fill in your email and password!'); return; }
+  setBusy('btn-si', true);
+  auth.signInWithEmailAndPassword(email, pass)
+    .then(function(cred) {
+      if (!cred.user.emailVerified) {
+        showVerifyScreen(cred.user.email);
+      }
+      // onAuthStateChanged handles launching the app for verified users
+    })
+    .catch(function(e) { showAuthErr(friendlyErr(e.code)); })
+    .finally(function() { setBusy('btn-si', false); });
+}
+
+// Keyboard shortcuts on auth inputs
+G('si-pw').addEventListener('keydown', function(e) { if (e.key === 'Enter') doSignIn(); });
+G('su-pw').addEventListener('keydown', function(e) { if (e.key === 'Enter') doSignUp(); });
+G('si-em').addEventListener('keydown', function(e) { if (e.key === 'Enter') G('si-pw').focus(); });
+G('su-em').addEventListener('keydown', function(e) { if (e.key === 'Enter') G('su-pw').focus(); });
+G('su-nm').addEventListener('keydown', function(e) { if (e.key === 'Enter') G('su-em').focus(); });
+
+// ── Verify screen ─────────────────────────────────────────
+function showVerifyScreen(email) {
+  G('auth-screen').style.display = 'none';
+  G('vemail').textContent = email || 'your email';
+  G('vscreen').classList.add('show');
+}
+function checkVerify() {
+  var u = auth.currentUser;
+  if (!u) { G('vnote').textContent = 'Session expired — please sign in again.'; return; }
+  G('vnote').textContent = 'Checking…';
+  u.reload()
+    .then(function() {
+      if (u.emailVerified) {
+        G('vscreen').classList.remove('show');
+        G('vnote').textContent = '';
+        // onAuthStateChanged will fire and launch the app
+      } else {
+        G('vnote').textContent = "Still not verified. Check your spam folder too!";
+      }
+    })
+    .catch(function(e) { G('vnote').textContent = 'Error: ' + e.message; });
+}
+function resendVerify() {
+  var u = auth.currentUser; if (!u) return;
+  u.sendEmailVerification()
+    .then(function() {
+      var ok = G('vok');
+      ok.textContent = '✓ Sent! Check your inbox (and spam folder just in case).';
+      ok.classList.add('show');
+      setTimeout(function() { ok.classList.remove('show'); }, 7000);
+    })
+    .catch(function(e) { G('verr').textContent = e.message; G('verr').classList.add('show'); });
+}
+function doSignOut() {
+  if (presRef) try { presRef.delete(); } catch(e) {}
+  clearTyp();
+  if (hb) { clearInterval(hb); hb = null; }
+  if (typUnsub) { typUnsub(); typUnsub = null; }
+  auth.signOut().then(function() { window.location.reload(); });
+}
+function confirmSignOut() {
+  showModal('Signing out?', "You'll need to sign back in to chat again. Cool?", 'Yeah, sign me out', doSignOut);
+}
+
+// ── Launch app ────────────────────────────────────────────
+function launchApp() {
+  G('app').classList.add('alive');
+  G('mynm').textContent  = username;
+  G('lvnm').textContent  = username + ' (you)';
+  var av = G('myav');
+  av.className = 'myav ' + colorFor(username);
+  av.innerHTML = ini(username) + '<div class="mdot"></div>';
+  setStat('Connecting…', 'y');
+  buildEmojiPanel();
+  initPeer();
+  listenMessages();
+  listenPresence();
+  listenTyping();
+  announcePresence();
+}
+
+// ── Mobile sidebar ────────────────────────────────────────
+function openSB() { G('sidebar').classList.add('open'); G('sb-ov').classList.add('show'); }
+function closeSB() { G('sidebar').classList.remove('open'); G('sb-ov').classList.remove('show'); }
+
+// ── Presence ──────────────────────────────────────────────
+function announcePresence() {
+  presRef = pCol().doc(username);
+  var TS = firebase.firestore.FieldValue.serverTimestamp;
+  presRef.set({ name: username, peerId: myPid || '', ts: TS() }).catch(function() {});
+  hb = setInterval(function() {
+    presRef.set({ name: username, peerId: myPid || '', ts: TS() }, { merge: true }).catch(function() {});
+  }, 20000);
+  window.addEventListener('beforeunload', function() {
+    clearTyp();
+    try { presRef.delete(); } catch(e) {}
+  });
+}
+function listenPresence() {
+  pCol().onSnapshot(function(snap) {
+    var us = []; snap.forEach(function(d) { us.push(d.data()); });
+    G('ocnt').textContent = us.length;
+    renderUsers(us);
+  }, function(e) { console.warn('Presence error:', e.message); });
+}
+function renderUsers(us) {
+  var el = G('ulist'); el.innerHTML = '';
+  us.sort(function(a, b) {
+    if (a.name === username) return -1;
+    if (b.name === username) return 1;
+    return a.name.localeCompare(b.name);
+  });
+  us.forEach(function(u) {
+    var isMe = u.name === username, c = colorFor(u.name);
+    var d = document.createElement('div'); d.className = 'urow';
+    d.innerHTML =
+      '<div class="uav ' + c + '">' + ini(u.name) + '<div class="udot"></div></div>' +
+      '<div class="unm' + (isMe ? ' me' : '') + '">' + esc(u.name) + (isMe ? ' (you)' : '') + '</div>' +
+      '<div class="ubtns">' +
+        (u.peerId && !isMe ? '<button class="ib" onclick="callFromSidebar(\'' + ea(u.peerId) + '\',false)" title="Video call" style="font-size:12px">📹</button>' : '') +
+        (!isMe ? '<button class="ib" onclick="openDM(\'' + ea(u.name) + '\')" title="DM" style="font-size:12px">💌</button>' : '') +
+      '</div>';
+    el.appendChild(d);
+  });
+}
+
+// ── Typing ────────────────────────────────────────────────
+function onTyping() {
+  if (!username) return;
+  if (!isTyping) {
+    isTyping = true;
+    tCol().doc(username).set({ name: username, ts: firebase.firestore.FieldValue.serverTimestamp() }).catch(function() {});
+  }
+  clearTimeout(typTimer);
+  typTimer = setTimeout(clearTyp, 3000);
+}
+function clearTyp() {
+  if (!isTyping) return;
+  isTyping = false; clearTimeout(typTimer);
+  if (username) tCol().doc(username).delete().catch(function() {});
+}
+function listenTyping() {
+  typUnsub = tCol().onSnapshot(function(snap) {
+    var ns = [];
+    snap.forEach(function(d) { if (d.id !== username) ns.push(d.data().name); });
+    var txt = G('tytxt'), dots = G('tdots');
+    if (!ns.length)         { txt.textContent = ''; dots.classList.add('hide'); }
+    else if (ns.length === 1) { txt.textContent = ns[0] + ' is typing…'; dots.classList.remove('hide'); }
+    else if (ns.length === 2) { txt.textContent = ns[0] + ' and ' + ns[1] + ' are typing…'; dots.classList.remove('hide'); }
+    else                    { txt.textContent = 'Several people are typing…'; dots.classList.remove('hide'); }
+  }, function(e) { console.warn('Typing listen error:', e.message); });
+}
+
+// ── Messages ──────────────────────────────────────────────
+function listenMessages() {
+  mCol().orderBy('ts', 'asc').onSnapshot({ includeMetadataChanges: false }, function(snap) {
+    snap.docChanges().forEach(function(ch) {
+      if (ch.type === 'added') {
+        if (seenIds[ch.doc.id]) return;
+        seenIds[ch.doc.id] = true;
+        renderMsg(ch.doc.data(), ch.doc.id);
+      }
+    });
+    setStat('Connected 🟢', 'g');
+  }, function(e) {
+    setStat('Firebase error — try refreshing!', 'r');
+    console.error('Messages error:', e);
+  });
+}
+
+function renderMsg(d, id) {
+  var w = G('mwrap');
+
+  // Day divider
+  if (d.ts) {
+    var day = fmtD(d.ts);
+    if (day && day !== lastDay) {
+      lastDay = day;
+      var dd = document.createElement('div'); dd.className = 'daydiv'; dd.textContent = day;
+      w.appendChild(dd);
+    }
+  }
+
+  if (d.type === 'sys') {
+    var s = document.createElement('div'); s.className = 'sysmsg'; s.textContent = d.text || ''; w.appendChild(s);
+    return;
+  }
+
+  if (d.type === 'peerid') {
+    var isMe = d.user === username, c = colorFor(d.user || '');
+    var g = document.createElement('div'); g.className = 'mg wa';
+    g.innerHTML =
+      '<div class="avcol"><div class="mav ' + c + '"' + (!isMe ? ' onclick="openDM(\'' + ea(d.user) + '\')"' : '') + '>' + ini(d.user) + '</div></div>' +
+      '<div class="mbody"><div class="mmeta">' +
+        '<span class="mauth' + (isMe ? ' me' : '') + '"' + (!isMe ? ' onclick="openDM(\'' + ea(d.user) + '\')"' : '') + '>' + esc(d.user) + '</span>' +
+        '<span class="mts">' + fmtT(d.ts) + '</span>' +
+      '</div>' +
+      '<div class="pcard">' +
+        '<div class="pclbl">' + (isMe ? 'Your Peer ID' : esc(d.user) + "'s Peer ID") + '</div>' +
+        '<div class="pcid">' + esc(d.id) + '</div>' +
+        (!isMe ? '<div class="pcbtns">' +
+          '<button class="pcb v" onclick="callFromBubble(\'' + ea(d.id) + '\',false)">📹 Video</button>' +
+          '<button class="pcb a" onclick="callFromBubble(\'' + ea(d.id) + '\',true)">🎙 Voice</button>' +
+          '<button class="pcb c" onclick="copyPID(\'' + ea(d.id) + '\',this)">Copy ID</button>' +
+        '</div>' : '') +
+      '</div></div>';
+    w.appendChild(g);
+    return;
+  }
+
+  // Regular chat message
+  var isMe = d.user === username, c = colorFor(d.user || '');
+  var rxns = d.reactions || {}, rxh = '';
+  Object.keys(rxns).forEach(function(em) {
+    var users = rxns[em]; if (!users || !users.length) return;
+    var mine = Array.isArray(users) && users.indexOf(username) !== -1;
+    rxh += '<button class="rx' + (mine ? ' mine' : '') + '" onclick="toggleRx(\'' + ea(id) + '\',\'' + ea(em) + '\')">' + esc(em) + '<span class="rxn">' + users.length + '</span></button>';
+  });
+  rxh += '<button class="rxadd" onclick="openRxPicker(event,\'' + ea(id) + '\')" title="React">+</button>';
+
+  var g = document.createElement('div'); g.className = 'mg wa'; if (id) g.dataset.id = id;
+  g.innerHTML =
+    '<div class="avcol"><div class="mav ' + c + '"' + (!isMe ? ' onclick="openDM(\'' + ea(d.user) + '\')"' : '') + '>' + ini(d.user) + '</div></div>' +
+    '<div class="mbody"><div class="mmeta">' +
+      '<span class="mauth' + (isMe ? ' me' : '') + '"' + (!isMe ? ' onclick="openDM(\'' + ea(d.user) + '\')"' : '') + '>' + esc(d.user) + '</span>' +
+      '<span class="mts">' + fmtT(d.ts) + '</span>' +
+    '</div>' +
+    '<div class="mtxt">' + linkify(esc(d.text || '')) + '</div>' +
+    '<div class="mrxns">' + rxh + '</div></div>';
+  w.appendChild(g);
+
+  // Smart scroll
+  if (w.scrollHeight - w.scrollTop - w.clientHeight < 120) w.scrollTop = w.scrollHeight;
+}
+
+// ── Reactions ─────────────────────────────────────────────
+var RXL = ['👍','❤️','😂','😮','😢','🔥','👏','🎉','💯','✅','😍','🤔'];
+function openRxPicker(e, msgId) {
+  e.stopPropagation();
+  var p = G('rxpick'); p.innerHTML = '';
+  RXL.forEach(function(em) {
+    var b = document.createElement('button'); b.textContent = em;
+    b.onclick = function() { toggleRx(msgId, em); p.classList.remove('show'); };
+    p.appendChild(b);
+  });
+  var vw = window.innerWidth, vh = window.innerHeight;
+  p.style.left = Math.max(8, (vw - 224) / 2) + 'px';
+  p.style.top  = Math.max(8, (vh - 85)  / 2) + 'px';
+  p.classList.add('show');
+  setTimeout(function() {
+    var cl = function(ev) { if (!p.contains(ev.target)) { p.classList.remove('show'); document.removeEventListener('click', cl); } };
+    document.addEventListener('click', cl);
+  }, 50);
+}
+function toggleRx(id, em) {
+  if (!id || !username) return;
+  mCol().doc(id).get().then(function(snap) {
+    if (!snap.exists) return;
+    var us = (snap.data().reactions || {})[em] || [];
+    var f  = 'reactions.' + em;
+    if (us.indexOf(username) !== -1) {
+      mCol().doc(id).update({ [f]: firebase.firestore.FieldValue.arrayRemove(username) });
+    } else {
+      mCol().doc(id).update({ [f]: firebase.firestore.FieldValue.arrayUnion(username) });
+    }
+  }).catch(function(e) { console.warn('Reaction error:', e.message); });
+}
+
+// ── Emoji panel ───────────────────────────────────────────
+var EML = ['😀','😂','🥲','😍','🤩','😎','🥳','🤔','😴','🥺','😤','😭','👋','🙌','👍','❤️','🔥','⚡','✅','🎉','🚀','💯','💬','😊','🎙','📞','🖥','🔇','📷'];
+function buildEmojiPanel() {
+  var p = G('epanel'); if (p.childElementCount) return;
+  EML.forEach(function(em) {
+    var b = document.createElement('button'); b.textContent = em;
+    b.onclick = function() { insertEmoji(em); };
+    p.appendChild(b);
+  });
+}
+function toggleEmoji(e) { e.stopPropagation(); G('epanel').classList.toggle('show'); }
+function insertEmoji(em) {
+  var ta = G('chin'), s = ta.selectionStart, end = ta.selectionEnd;
+  ta.value = ta.value.slice(0, s) + em + ta.value.slice(end);
+  ta.selectionStart = ta.selectionEnd = s + em.length;
+  ta.focus(); autoGrow(ta);
+}
+document.addEventListener('click', function(e) {
+  var p = G('epanel');
+  if (p && !p.contains(e.target) && !e.target.classList.contains('etog')) p.classList.remove('show');
+});
+
+// ── Send chat ─────────────────────────────────────────────
+function chatKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }
+function sendChat() {
+  var ta = G('chin'), txt = ta.value.trim(); if (!txt) return;
+  ta.value = ''; autoGrow(ta); clearTyp(); G('epanel').classList.remove('show');
+  mCol().add({
+    type: 'chat', user: username, text: txt,
+    ts: firebase.firestore.FieldValue.serverTimestamp(), reactions: {}
+  }).catch(function() { toast("Message didn't send — check your connection!", 'er'); });
+}
+
+// ── DMs ───────────────────────────────────────────────────
+function openDM(target) {
+  if (!target || target === username) return;
+  dmTarget = target;
+  G('dmtit').textContent = target;
+  G('dmmsgs').innerHTML = '';
+  G('dmpanel').classList.add('show');
+  if (window.innerWidth <= 680) G('sb-ov').classList.add('show');
+  if (dmUnsub) { dmUnsub(); dmUnsub = null; }
+  dmUnsub = dCol(dmKeyFor(username, target)).orderBy('ts', 'asc').onSnapshot(function(snap) {
+    snap.docChanges().forEach(function(ch) { if (ch.type === 'added') renderDMMsg(ch.doc.data()); });
+  }, function(e) { console.warn('DM listen error:', e.message); });
+}
+function closeDM() {
+  G('dmpanel').classList.remove('show');
+  if (window.innerWidth <= 680) G('sb-ov').classList.remove('show');
+  if (dmUnsub) { dmUnsub(); dmUnsub = null; }
+  dmTarget = null;
+}
+function toggleDM() {
+  var p = G('dmpanel');
+  if (p.classList.contains('show')) closeDM();
+  else if (dmTarget) p.classList.add('show');
+  else toast("Click someone's name to start a DM first!", 'in');
+}
+function renderDMMsg(d) {
+  var el = G('dmmsgs'), isMe = d.from === username;
+  var w = document.createElement('div'); w.className = 'dmmsg'; w.style.alignItems = isMe ? 'flex-end' : 'flex-start';
+  w.innerHTML = '<div class="dmmeta">' + (isMe ? 'You' : esc(d.from)) + ' · ' + fmtT(d.ts) + '</div>' +
+    '<div class="dmbub ' + (isMe ? 'mine' : 'theirs') + '">' + linkify(esc(d.text || '')) + '</div>';
+  el.appendChild(w); el.scrollTop = el.scrollHeight;
+}
+function dmInputKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendDM(); } }
+function sendDM() {
+  var inp = G('dmin'), txt = inp.value.trim(); if (!txt || !dmTarget) return; inp.value = '';
+  dCol(dmKeyFor(username, dmTarget)).add({
+    from: username, to: dmTarget, text: txt,
+    ts: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(function() { toast("DM didn't send — try again!", 'er'); });
+}
+
+// ── PeerJS ────────────────────────────────────────────────
+function initPeer() {
+  try {
+    peer = new Peer({ debug: 0, config: { iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' }
+    ]}});
+  } catch(e) {
+    setStat('PeerJS failed — calls won\'t work', 'r');
+    toast('PeerJS error: ' + e.message, 'er');
+    return;
+  }
+  peer.on('open', function(id) {
+    myPid = id; G('mypid').textContent = id;
+    G('bvc').disabled = false; G('bac').disabled = false;
+    mCol().add({ type: 'peerid', user: username, id: id, ts: firebase.firestore.FieldValue.serverTimestamp() }).catch(function() {});
+    if (presRef) presRef.set({ peerId: id }, { merge: true }).catch(function() {});
+    setStat('Connected 🟢', 'g');
+    toast("You're connected! 🎉", 'ok');
+  });
+  peer.on('call', function(inc) {
+    pendingCall = inc;
+    G('incfrom').textContent = 'from: ' + ((inc.metadata && inc.metadata.name) ? inc.metadata.name : 'Someone');
+    G('incoming').classList.add('show');
+  });
+  peer.on('error', function(e) {
+    console.warn('PeerJS error:', e.type, e.message);
+    if (e.type !== 'peer-unavailable') {
+      setStat('Peer error: ' + e.type, 'r');
+      toast('Call issue: ' + e.type + '. Refresh if calls aren\'t working.', 'er', 5000);
+    }
+  });
+  peer.on('disconnected', function() {
+    setStat('Reconnecting…', 'y');
+    setTimeout(function() { try { if (peer && !peer.destroyed) peer.reconnect(); } catch(e) {} }, 1500);
+  });
+  peer.on('close', function() { setStat('Peer closed — reload for calls', 'r'); });
+}
+
+function getStream(voiceOnly) {
+  if (localStream) return Promise.resolve(localStream);
+  return navigator.mediaDevices.getUserMedia({ video: !voiceOnly, audio: true })
+    .then(function(s) { localStream = s; G('lv').srcObject = s; G('lv').play().catch(function(){}); return s; })
+    .catch(function() {
+      return navigator.mediaDevices.getUserMedia({ video: false, audio: true })
+        .then(function(s) { localStream = s; G('lv').srcObject = s; G('lv').play().catch(function(){}); return s; });
+    });
+}
+function nextSlot() { for (var i = 1; i <= 3; i++) { var v = G('rv' + i); if (v && !v.srcObject) return 'rv' + i; } return null; }
+function attachRemote(sid, stream, nm) {
+  var v = G(sid), slot = G(sid + 's'), lbl = G(sid + 'n');
+  if (!v) return;
+  v.srcObject = stream; v.muted = false; v.volume = 1; v.play().catch(function(){});
+  if (slot) slot.classList.remove('hide');
+  if (lbl)  lbl.textContent = nm || sid;
+  updStage();
+}
+function detachRemote(sid) {
+  var v = G(sid), slot = G(sid + 's');
+  if (v) v.srcObject = null; if (slot) slot.classList.add('hide');
+  updStage();
+}
+function updStage() {
+  var n = Object.keys(activeCalls).length;
+  G('vgrid').className = 'vgrid ' + (n >= 3 ? 's4' : n === 2 ? 's3' : n === 1 ? 's2' : 's1');
+}
+function connCall(tid, voiceOnly, slot, nm) {
+  var c = peer.call(tid, localStream, { metadata: { name: username } });
+  if (!c) { toast("Couldn't reach that Peer ID — make sure it's correct!", 'er'); return; }
+  activeCalls[tid] = { call: c, slot: slot };
+  c.on('stream', function(s) { attachRemote(slot, s, nm); onCallStart(); });
+  c.on('close',  function() { delete activeCalls[tid]; detachRemote(slot); sysLocal(nm + ' left the call.'); if (!Object.keys(activeCalls).length) onCallEnd(); });
+  c.on('error',  function(e) { console.warn('Call error:', e); delete activeCalls[tid]; detachRemote(slot); if (!Object.keys(activeCalls).length) onCallEnd(); });
+}
+function startCall(voiceOnly) {
+  var ids = ['t1','t2','t3'].map(function(i) { return G(i).value.trim(); }).filter(Boolean);
+  if (!ids.length) { toast('Paste at least one Peer ID first!', 'er'); return; }
+  getStream(voiceOnly)
+    .then(function() { ids.forEach(function(id, i) { connCall(id, voiceOnly, 'rv' + (i + 1), 'Friend ' + (i + 1)); }); })
+    .catch(function(e) { toast("Couldn't access mic/camera: " + e.message, 'er'); });
+}
+function answerCall() {
+  G('incoming').classList.remove('show'); if (!pendingCall) return;
+  getStream(false).catch(function() { return getStream(true); })
+    .then(function() {
+      var slot = nextSlot() || 'rv1';
+      var nm = (pendingCall.metadata && pendingCall.metadata.name) ? pendingCall.metadata.name : 'Friend';
+      pendingCall.answer(localStream);
+      var c = pendingCall; pendingCall = null;
+      activeCalls[c.peer] = { call: c, slot: slot };
+      c.on('stream', function(s) { attachRemote(slot, s, nm); onCallStart(); });
+      c.on('close',  function() { delete activeCalls[c.peer]; detachRemote(slot); sysLocal(nm + ' left the call.'); if (!Object.keys(activeCalls).length) onCallEnd(); });
+      c.on('error',  function(e) { console.warn('Answer error:', e); delete activeCalls[c.peer]; detachRemote(slot); if (!Object.keys(activeCalls).length) onCallEnd(); });
+    })
+    .catch(function(e) { toast("Couldn't get mic/camera to answer: " + e.message, 'er'); });
+}
+function rejectCall() {
+  G('incoming').classList.remove('show');
+  if (pendingCall) { try { pendingCall.close(); } catch(e) {} pendingCall = null; }
+}
+function onCallStart() {
+  G('vgrid').style.display = 'grid'; G('csetup').style.display = 'none';
+  G('cctrls').classList.remove('hide'); G('callbar').classList.add('show');
+  if (!callInterval) {
+    callSecs = 0;
+    callInterval = setInterval(function() {
+      callSecs++;
+      var m = String(Math.floor(callSecs / 60)).padStart(2, '0');
+      var s = String(callSecs % 60).padStart(2, '0');
+      G('ctimer').textContent = m + ':' + s;
+    }, 1000);
+  }
+  var n = Object.keys(activeCalls).length;
+  G('clbl').textContent = n > 1 ? (n + 1) + '-way call' : 'Call active';
+}
+function onCallEnd() {
+  clearInterval(callInterval); callInterval = null;
+  G('callbar').classList.remove('show'); G('vgrid').style.display = 'none';
+  G('csetup').style.display = ''; G('cctrls').classList.add('hide');
+  ['rv1','rv2','rv3'].forEach(function(s) { detachRemote(s); });
+  if (localStream)  { localStream.getTracks().forEach(function(t) { t.stop(); }); localStream = null; }
+  if (screenStream) { screenStream.getTracks().forEach(function(t) { t.stop(); }); screenStream = null; }
+  muted = false; camOff = false; screening = false; updBtns();
+  toast('Call ended', 'in');
+}
+function endCall() {
+  Object.keys(activeCalls).forEach(function(p) { try { activeCalls[p].call.close(); } catch(e) {} });
+  activeCalls = {}; onCallEnd();
+}
+function toggleMute() { muted = !muted; if (localStream) localStream.getAudioTracks().forEach(function(t) { t.enabled = !muted; }); updBtns(); }
+function toggleCam()  { camOff = !camOff; if (localStream) localStream.getVideoTracks().forEach(function(t) { t.enabled = !camOff; }); updBtns(); }
+function toggleScreen() {
+  if (!Object.keys(activeCalls).length) { toast('Start a call first before sharing your screen!', 'er'); return; }
+  if (!screening) {
+    navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
+      .then(function(ss) {
+        screenStream = ss; var st = ss.getVideoTracks()[0];
+        Object.keys(activeCalls).forEach(function(pid) {
+          var pc = activeCalls[pid].call.peerConnection;
+          if (pc) { var sn = pc.getSenders().find(function(s) { return s.track && s.track.kind === 'video'; }); if (sn) sn.replaceTrack(st); }
+        });
+        G('lv').srcObject = ss; st.onended = function() { screening = false; stopScreen(); };
+        screening = true; updBtns();
+      })
+      .catch(function(e) { sysLocal('Screen share cancelled: ' + e.message); });
+  } else stopScreen();
+}
+function stopScreen() {
+  if (screenStream) { screenStream.getTracks().forEach(function(t) { t.stop(); }); screenStream = null; }
+  var vt = localStream && localStream.getVideoTracks()[0];
+  if (vt) Object.keys(activeCalls).forEach(function(pid) {
+    var pc = activeCalls[pid].call.peerConnection;
+    if (pc) { var sn = pc.getSenders().find(function(s) { return s.track && s.track.kind === 'video'; }); if (sn) sn.replaceTrack(vt); }
+  });
+  if (localStream) G('lv').srcObject = localStream;
+  screening = false; updBtns();
+}
+function updBtns() {
+  var bm = G('barmute'); if (bm) bm.textContent = muted ? '🔇' : '🎤';
+  [['cbmute','🎤 Mute','🔇 Unmute'],['ctrlmute','🎤 Mute','🔇 Unmute']].forEach(function(a) {
+    var b = G(a[0]); if (!b) return; b.textContent = muted ? a[2] : a[1]; b.classList.toggle('on', muted);
+  });
+  var cc = G('ctrlcam');  if (cc)  { cc.textContent  = camOff   ? '📷 Cam On'      : '📷 Cam Off';     cc.classList.toggle('on', camOff); }
+  var cbc = G('cbcam');   if (cbc) { cbc.textContent = camOff   ? '📷 On'          : '📷 Cam';          cbc.classList.toggle('on', camOff); }
+  var cs = G('ctrlscr');  if (cs)  { cs.textContent  = screening ? '🖥 Stop Share'  : '🖥 Share Screen'; cs.classList.toggle('on', screening); }
+  var cbs = G('cbscr');   if (cbs) { cbs.textContent = screening ? '🖥 Stop'        : '🖥 Share';        cbs.classList.toggle('on', screening); }
+}
+function callFromBubble(id, voiceOnly) {
+  ['t1','t2','t3'].some(function(inp) { var e = G(inp); if (!e.value.trim()) { e.value = id; return true; } return false; });
+  goView('call', G('nvcall'));
+  setTimeout(function() { startCall(voiceOnly); }, 200);
+}
+function callFromSidebar(id, vo) { callFromBubble(id, vo); }
+function copyPID(id, btn) {
+  navigator.clipboard.writeText(id)
+    .then(function() { btn.textContent = '✓ Copied!'; setTimeout(function() { btn.textContent = 'Copy ID'; }, 1800); })
+    .catch(function() { btn.textContent = 'Failed'; setTimeout(function() { btn.textContent = 'Copy ID'; }, 2000); });
+}
+
+// Unlock remote audio on first user click
+document.addEventListener('click', function() {
+  ['rv1','rv2','rv3'].forEach(function(id) {
+    var v = G(id); if (!v) return;
+    v.muted = false; v.volume = 1;
+    if (v.srcObject && v.paused) v.play().catch(function(){});
+  });
+}, { passive: true });
+
+// ── View switcher ─────────────────────────────────────────
+var VM = {
+  chat:    { nav: 'nvchat',    ico: '#',  tit: 'general',       desc: 'Room chat for everyone' },
+  call:    { nav: 'nvcall',    ico: '🎙', tit: 'voice & video', desc: 'P2P calls'              },
+  patches: { nav: 'nvpatches', ico: '📋', tit: 'patch notes',   desc: "What's new"             },
+  help:    { nav: 'nvhelp',    ico: '❓', tit: 'help',          desc: 'Get unstuck'            },
+};
+function goView(v, navEl) {
+  document.querySelectorAll('.chi').forEach(function(c) { c.classList.remove('on'); });
+  var m = VM[v];
+  if (navEl) navEl.classList.add('on');
+  else if (m) { var n = G(m.nav); if (n) n.classList.add('on'); }
+  ['vchat','vcall','vpatches','vhelp'].forEach(function(id) { var e = G(id); if (e) e.style.display = 'none'; });
+  var tgt = G('v' + v);
+  if (tgt) tgt.style.display = (v === 'chat' || v === 'call') ? 'flex' : 'block';
+  if (m) { G('mhico').textContent = m.ico; G('mhtit').textContent = m.tit; G('mhdesc').textContent = m.desc; }
+  if (window.innerWidth <= 680) closeSB();
+}
+
+// ── Misc ──────────────────────────────────────────────────
+function sysLocal(t) { var e = document.createElement('div'); e.className = 'sysmsg'; e.textContent = t; G('mwrap').appendChild(e); }
+function copyInvite(btn) {
+  navigator.clipboard.writeText(window.location.href)
+    .then(function() { btn.textContent = '✓'; toast('Invite link copied! 🔗', 'ok'); setTimeout(function() { btn.textContent = '🔗'; }, 2000); })
+    .catch(function() { toast("Couldn't copy — grab the URL from your browser's address bar", 'er'); });
+}
+</script>
+</body>
+</html>
